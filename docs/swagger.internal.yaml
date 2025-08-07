@@ -1,0 +1,839 @@
+openapi: 3.0.0
+info:
+  title: Nemo3 API Service
+  description: Internal API service for Nemo3 vehicle service management
+  version: 1.0.0
+  
+
+security:
+  - cookieAuth: []
+
+paths:
+  # Health Endpoints
+  /api/v1/fms/service/health/check:
+    get:
+      tags:
+        - Health
+      summary: Get health status
+      description: Returns the health status of the service
+      responses:
+        '200':
+          description: Health status retrieved successfully
+        '500':
+          description: Internal server error
+
+  # Service Overview
+  /api/v1/fms/service/overview:
+    get:
+      tags:
+        - Service Overview
+      summary: Get service overview
+      description: Returns service overview for the account
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: isrecursive
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: ["true", "false"]
+          description: Whether to include recursive data
+        - name: fleetid
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Fleet ID (must be a valid UUID)
+        - name: startdate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Service window filter date
+      responses:
+        '200':
+          description: Service overview fetched successfully
+        '400':
+          description: Invalid request parameters
+        '500':
+          description: Internal server error
+
+  # Service Types
+  /api/v1/fms/service/types:
+    get:
+      tags:
+        - Service Management
+      summary: Get service types
+      description: Returns available service types
+      parameters:
+        - name: modelDesc
+          in: query
+          required: false
+          schema:
+            type: string
+            default: "TREO"
+          description: Model description
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Service types retrieved successfully
+        '400':
+          description: Invalid request parameters
+        '500':
+          description: Internal server error
+
+  # Cancel Reasons
+  /api/v1/fms/service/cancel/reasons:
+    get:
+      tags:
+        - Service Management
+      summary: Get cancellation reasons
+      description: Returns available booking cancellation reasons
+      responses:
+        '200':
+          description: Cancel reasons retrieved successfully
+        '500':
+          description: Internal server error
+
+  # Service Booking
+  /api/v1/fms/service/booking:
+    post:
+      tags:
+        - Service Booking
+      summary: Create vehicle service booking
+      description: Creates a new vehicle service booking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vinno
+                - servicetype
+                - modeldisplayname
+                - parentgroup
+                - locationcode
+                - dealername
+                - dealeraddress
+                - slot
+              properties:
+                vinno:
+                  type: string
+                  minLength: 17
+                  maxLength: 17
+                  description: Vehicle VIN number
+                servicetype:
+                  type: string
+                  description: Type of service
+                kilometer:
+                  type: string
+                  description: Kilometer reading
+                modeldisplayname:
+                  type: string
+                  description: Display name of the vehicle model
+                parentgroup:
+                  type: string
+                  description: Parent group identifier
+                locationcode:
+                  type: string
+                  description: Location code
+                dealername:
+                  type: string
+                  description: Name of the dealer
+                dealeraddress:
+                  type: string
+                  description: Address of the dealer
+                slot:
+                  type: integer
+                  format: int64
+                  minimum: 0
+                  description: Service slot timestamp (must be greater than current date)
+      responses:
+        '200':
+          description: Booking created successfully
+        '400':
+          description: Invalid request body
+        '500':
+          description: Internal server error
+
+    put:
+      tags:
+        - Service Booking
+      summary: Reschedule vehicle service booking
+      description: Reschedules an existing vehicle service booking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vinno
+                - oldbookingid
+                - newservicetype
+                - modeldisplayname
+                - newparentgroup
+                - newlocationcode
+                - newdealername
+                - newdealeraddress
+                - newslot
+              properties:
+                vinno:
+                  type: string
+                  minLength: 17
+                  maxLength: 17
+                  description: Vehicle VIN number
+                oldbookingid:
+                  type: string
+                  format: uuid
+                  description: ID of the booking to reschedule
+                newservicetype:
+                  type: string
+                  description: New type of service
+                newkilometer:
+                  type: string
+                  description: New kilometer reading
+                modeldisplayname:
+                  type: string
+                  description: Display name of the vehicle model
+                newparentgroup:
+                  type: string
+                  description: New parent group identifier
+                newlocationcode:
+                  type: string
+                  description: New location code
+                newdealername:
+                  type: string
+                  description: New dealer name
+                newdealeraddress:
+                  type: string
+                  description: New dealer address
+                newslot:
+                  type: integer
+                  format: int64
+                  minimum: 0
+                  description: New service slot timestamp (must be greater than current date)
+      responses:
+        '200':
+          description: Booking rescheduled successfully
+        '400':
+          description: Invalid request body
+        '500':
+          description: Internal server error
+
+  /api/v1/fms/service/booking/cancel:
+    post:
+      tags:
+        - Service Booking
+      summary: Cancel vehicle service booking
+      description: Cancels an existing vehicle service booking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - bookingid
+                - reason
+                - vinno
+              properties:
+                bookingid:
+                  type: string
+                  format: uuid
+                  description: ID of the booking to cancel
+                reason:
+                  type: string
+                  description: Reason for cancellation
+                vinno:
+                  type: string
+                  minLength: 17
+                  maxLength: 17
+                  description: Vehicle VIN number
+      responses:
+        '200':
+          description: Booking cancelled successfully
+        '400':
+          description: Invalid request body
+        '500':
+          description: Internal server error
+
+  # Cost Estimate
+  /api/v1/fms/service/cost/estimate:
+    post:
+      tags:
+        - Service Booking
+      summary: Get vehicle service cost estimate
+      description: Returns cost estimate for vehicle service
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vinno
+                - selectedkm
+              properties:
+                vinno:
+                  type: string
+                  minLength: 17
+                  maxLength: 17
+                  description: Vehicle VIN number
+                selectedkm:
+                  type: string
+                  description: Selected kilometer reading
+                model:
+                  type: string
+                  default: "TREO"
+                  description: Vehicle model
+      responses:
+        '200':
+          description: Cost estimate retrieved successfully
+        '400':
+          description: Invalid request body
+        '500':
+          description: Internal server error
+
+  # Schedule Job Types
+  /api/v1/fms/service/shedulejobtypes:
+    get:
+      tags:
+        - Service Management
+      summary: Get schedule job types
+      description: Returns available schedule job types
+      parameters:
+        - name: modelDesc
+          in: query
+          required: false
+          schema:
+            type: string
+            default: "TREO"
+          description: Model description
+      responses:
+        '200':
+          description: Schedule job types retrieved successfully
+        '400':
+          description: Invalid request parameters
+        '500':
+          description: Internal server error
+
+  # Dealer Management
+  /api/v1/fms/service/dealer/list/search:
+    post:
+      tags:
+        - Dealer Management
+      summary: Search dealers
+      description: Search for dealers with filters
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vinno
+              properties:
+                vinno:
+                  type: string
+                  minLength: 17
+                  maxLength: 17
+                  description: Vehicle VIN number
+                modelDesc:
+                  type: string
+                  description: Model description
+                itemIndex:
+                  type: integer
+                  description: Pagination item index
+                pageSize:
+                  type: integer
+                  description: Pagination page size
+                searchFilter:
+                  type: string
+                  description: Search filter text
+      responses:
+        '200':
+          description: Dealer search results retrieved successfully
+        '400':
+          description: Invalid request body
+        '500':
+          description: Internal server error
+
+  /api/v1/fms/service/dealers:
+    post:
+      tags:
+        - Dealer Management
+      summary: List dealers
+      description: Returns list of dealers based on location
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vinno
+                - latitude
+                - longitude
+              properties:
+                vinno:
+                  type: string
+                  minLength: 17
+                  maxLength: 17
+                  description: Vehicle VIN number
+                latitude:
+                  type: number
+                  description: Location latitude
+                longitude:
+                  type: number
+                  description: Location longitude
+                modelDesc:
+                  type: string
+                  default: "TREO"
+                  description: Model description
+      responses:
+        '200':
+          description: Dealers list retrieved successfully
+        '400':
+          description: Invalid request body
+        '500':
+          description: Internal server error
+
+  /api/v1/fms/service/dealer/slots:
+    post:
+      tags:
+        - Dealer Management
+      summary: Get dealer slots
+      description: Returns available slots for a dealer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vinno
+                - parentCode
+                - locationCode
+                - date
+              properties:
+                vinno:
+                  type: string
+                  minLength: 17
+                  maxLength: 17
+                  description: Vehicle VIN number
+                parentCode:
+                  type: string
+                  description: Parent code
+                locationCode:
+                  type: string
+                  description: Location code
+                date:
+                  type: integer
+                  format: int64
+                  minimum: 0
+                  description: Date timestamp (must be after Jan 1, 1970)
+      responses:
+        '200':
+          description: Dealer slots retrieved successfully
+        '400':
+          description: Invalid request body
+        '500':
+          description: Internal server error
+
+  /api/v1/fms/service/dealer/search/nearest:
+    post:
+      tags:
+        - Dealer Management
+      summary: Search nearest dealers
+      description: Returns nearest dealers based on location
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - latitude
+                - longitude
+              properties:
+                modelgroupdesc:
+                  type: string
+                  description: Model group description
+                searchfilter:
+                  type: string
+                  description: Search filter text
+                dealertype:
+                  type: string
+                  description: Type of dealer
+                latitude:
+                  type: number
+                  description: Location latitude
+                longitude:
+                  type: number
+                  description: Location longitude
+      responses:
+        '200':
+          description: Nearest dealers retrieved successfully
+        '400':
+          description: Invalid request body
+        '500':
+          description: Internal server error
+
+  # SOS Management
+  /api/v1/fms/service/sos/reasons:
+    post:
+      tags:
+        - SOS Management
+      summary: Get SOS reasons
+      description: Returns available SOS reasons
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vinno
+              properties:
+                model:
+                  type: string
+                  description: Vehicle model
+                vinno:
+                  type: string
+                  minLength: 17
+                  maxLength: 17
+                  description: Vehicle VIN number
+      responses:
+        '200':
+          description: SOS reasons retrieved successfully
+        '400':
+          description: Invalid request body
+        '500':
+          description: Internal server error
+
+  /api/v1/fms/service/raise/sos:
+    post:
+      tags:
+        - SOS Management
+      summary: Raise SOS
+      description: Raises an emergency SOS for a vehicle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vinno
+                - issue
+                - latitude
+                - longitude
+                - description
+              properties:
+                vinno:
+                  type: string
+                  minLength: 17
+                  maxLength: 17
+                  description: Vehicle VIN number
+                issue:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+                  description: List of issues
+                latitude:
+                  type: number
+                  description: Location latitude
+                longitude:
+                  type: number
+                  description: Location longitude
+                description:
+                  type: string
+                  description: Description of the emergency
+      responses:
+        '200':
+          description: SOS raised successfully
+        '400':
+          description: Invalid request body
+        '500':
+          description: Internal server error
+
+  # Vehicle Management
+  /api/v1/fms/service/vehicles/list:
+    get:
+      tags:
+        - Vehicle Management
+      summary: Get vehicles in service
+      description: Returns list of vehicles currently in service
+      parameters:
+        - name: fleetid
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Fleet ID
+        - name: isrecursive
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: ["true", "false"]
+          description: Whether to include recursive data
+        - name: tabid
+          in: query
+          required: false
+          schema:
+            type: string
+            default: "all"
+          description: Tab filter
+        - name: startdate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Service window filter
+      responses:
+        '200':
+          description: Vehicles in service retrieved successfully
+        '400':
+          description: Invalid request parameters
+        '500':
+          description: Internal server error
+
+  /api/v1/fms/service/vehicle/history:
+    get:
+      tags:
+        - Vehicle Management
+      summary: Get vehicle service history
+      description: Returns service history for a specific vehicle
+      parameters:
+        - name: vinno
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 17
+            maxLength: 17
+          description: Vehicle VIN number
+      responses:
+        '200':
+          description: Vehicle service history retrieved successfully
+        '400':
+          description: Invalid request parameters
+        '500':
+          description: Internal server error
+
+  /api/v1/fms/service/vehicle/status:
+    post:
+      tags:
+        - Vehicle Management
+      summary: Get vehicle service status
+      description: Returns current service status for a vehicle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vinno
+                - bookingid
+              properties:
+                vinno:
+                  type: string
+                  minLength: 17
+                  maxLength: 17
+                  description: Vehicle VIN number
+                bookingid:
+                  type: string
+                  format: uuid
+                  description: Booking ID
+      responses:
+        '200':
+          description: Vehicle service status retrieved successfully
+        '400':
+          description: Invalid request body
+        '500':
+          description: Internal server error
+
+  /api/v1/fms/service/vehicle/onboarding:
+    post:
+      tags:
+        - Vehicle Management
+      summary: Vehicle onboarding
+      description: Onboards a new vehicle to the account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vinno
+                - mobileno
+              properties:
+                vinno:
+                  type: string
+                  minLength: 17
+                  maxLength: 17
+                  description: Vehicle VIN number
+                mobileno:
+                  type: string
+                  pattern: "^(\\+?[1-9]\\d{7,14}|[0-9]{10})$"
+                  description: Mobile number (10 digits or international format)
+                model:
+                  type: string
+                  description: Vehicle model
+      responses:
+        '200':
+          description: Vehicle onboarding completed successfully
+        '400':
+          description: Invalid request body
+        '500':
+          description: Internal server error
+
+  /api/v1/fms/service/vehicle/info:
+    get:
+      tags:
+        - Vehicle Management
+      summary: Get vehicle information
+      description: Returns detailed information about a vehicle
+      parameters:
+        - name: vinno
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 17
+            maxLength: 17
+          description: Vehicle VIN number
+      responses:
+        '200':
+          description: Vehicle information retrieved successfully
+        '400':
+          description: Invalid request parameters
+        '500':
+          description: Internal server error
+
+  /api/v1/fms/service/vehicle/invoice:
+    post:
+      tags:
+        - Vehicle Management
+      summary: Get vehicle service invoice
+      description: Returns invoice for a vehicle service
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vinno
+                - robillnumber
+                - bookingid
+              properties:
+                vinno:
+                  type: string
+                  minLength: 17
+                  maxLength: 17
+                  description: Vehicle VIN number
+                robillnumber:
+                  type: string
+                  description: RO bill number
+                bookingid:
+                  type: string
+                  format: uuid
+                  description: Booking ID
+      responses:
+        '200':
+          description: Invoice retrieved successfully
+        '400':
+          description: Invalid request body
+        '500':
+          description: Internal server error
+
+  # Kilometers
+  /api/v1/fms/service/kilometers:
+    post:
+      tags:
+        - Vehicle Management
+      summary: Get kilometers
+      description: Returns kilometer information for a vehicle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vinno
+              properties:
+                vinno:
+                  type: string
+                  minLength: 17
+                  maxLength: 17
+                  description: Vehicle VIN number
+      responses:
+        '200':
+          description: Kilometers retrieved successfully
+        '400':
+          description: Invalid request body
+        '500':
+          description: Internal server error
+
+  # Set Token
+  /api/v1/fms/service/settoken:
+    post:
+      tags:
+        - Authentication
+      summary: Set authentication token
+      description: Sets the authentication token in a cookie for Swagger documentation testing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+              properties:
+                token:
+                  type: string
+                  description: Authentication token to set in cookie
+      responses:
+        '200':
+          description: Token set successfully in cookie
+        '400':
+          description: Invalid request body
+        '500':
+          description: Internal server error
+
+components:
+  securitySchemes:
+   
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Service Overview
+    description: Service overview and summary endpoints
+  - name: Service Management
+    description: Service types and management endpoints
+  - name: Service Booking
+    description: Vehicle service booking operations
+  - name: Dealer Management
+    description: Dealer search and management endpoints
+  - name: SOS Management
+    description: Emergency SOS operations
+  - name: Vehicle Management
+    description: Vehicle information and management endpoints
+  - name: Authentication
+    description: Authentication and token management endpoints
