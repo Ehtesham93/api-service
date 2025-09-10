@@ -10,6 +10,7 @@ export default {
     apiserver: {
         port: 10004,
     },
+    logToConsole: false,
     emailsvc: {
         url: "https://email-service.intellicar.in",
         sendEmailPath: "/api/v1/email/send",
@@ -33,23 +34,24 @@ export default {
         port: 6379,
     },
     schemas: {
-        fmsauthsch: "stgfmscoresch",
+        fmscoresch: "stgfmscoresch",
         service: "servicesch"
     },
     externalapi: {
-        baseurl: " http://stg-nemo3-api-fms-svc.intellicar-frontend1:10004/api/v1/fms",
+        baseurl: "http://stg-nemo3-api-fms-svc.intellicar-frontend1:10004/api/v1/fms",
         referer: "https://stg-nemo.mahindralastmilemobility.com:8443"
     },
     csrf: {
         maxAgeInSeconds: 1800,
     },
     pathPrefix: "",
-    overrideInvoiceChecks: false,
     hardCodeData: {
         mobileNumber: "7592800016",
+        vinno: "MA1AD2ZA7PJF25158"
     },
     timeout: {
         axiostimeout: 60000,
         requesttimeout: 90000
-    }
+    },
+    enableServiceOnboarding: true
 };

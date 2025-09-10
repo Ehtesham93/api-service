@@ -23,8 +23,8 @@ export default class APIServer {
   Start(port) {
     this.app.use(createTimeoutMiddleware(this.config.timeout.requesttimeout));
 
-    for (let eachhandler of this.apiroutehandlers) {
-      let newrouter = promiserouter();
+    for (const eachhandler of this.apiroutehandlers) {
+      const newrouter = promiserouter();
       eachhandler[1].RegisterRoutes(newrouter);
       this.app.use(eachhandler[0], newrouter);
     }
@@ -32,7 +32,7 @@ export default class APIServer {
     this.app.use(this.#errornotfound);
     this.app.use(this.#errorhandler);
 
-    let server = this.app.listen(port, () => {
+    const server = this.app.listen(port, () => {
       this.logger.info("App listening on port:" + port);
     });
 
@@ -40,11 +40,15 @@ export default class APIServer {
       stopPolling();
       this.#gracefulShutdown("SIGINT", server)
     });
+    process.on("SIGTERM", () => {
+      stopPolling();
+      this.#gracefulShutdown("SIGTERM", server)
+    });
   }
 
   // # Private functions...
   #getexpressapp() {
-    let app = express();
+    const app = express();
     app.use(compression());
     app.use(bodyParser.urlencoded({ extended: true, limit: "50mb" }));
     app.use(bodyParser.json({ type: "application/*+json", limit: "50mb" }));
@@ -64,7 +68,7 @@ export default class APIServer {
         /^https:\/\/.*\.mahindralastmilemobility\.com:\d+$/,
       ];
 
-      if (!origin) return callback(null, true);
+      if (!origin) {return callback(null, true);}
 
       const isAllowed = allowedOrigins.some((pattern) =>
         pattern.test(origin)
@@ -162,10 +166,20 @@ export default class APIServer {
   }
 
   #gracefulShutdown(signal, server) {
-    this.logger.info(`\nReceived ${signal}. Initiating graceful server shutdown...`);
-    server.close(() => {
-      this.logger.info("Server closed successfully");
-      process.exit(0);
-    });
+    try {
+      if(!this.config.logToConsole){
+        this.logger.info(`\nReceived ${signal}. Initiating graceful server shutdown...`);
+        this.logger.stop();
+        this.logger.flush();
+      }
+  
+      server.close(() => {
+        console.log(`\n ${signal} received. Server closed successfully.`);
+        process.exit(0);
+      });
+    } catch (error) {
+      console.log("Error in graceful shutdown", error);
+      process.exit(1);
+    }
   }
 }

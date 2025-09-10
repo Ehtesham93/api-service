@@ -1,10 +1,16 @@
 import axios from "axios";
+import { getADCModel, getChassisNumber } from "./util.js";
 
 let serviceModSvcI = null;
 let config = null;
 let pollDatabaseTimeout = null;
 let processQueueTimeout = null;
 let pollProcessQueueTimeout = null;
+
+const ONBOARDING_STATUS = {
+  PENDING: 'PENDING',
+  COMPLETED: 'COMPLETED',
+};
 
 export function initializeServiceModDB(svcinstance, configinstance) {
     serviceModSvcI = svcinstance;
@@ -22,10 +28,10 @@ function wait(ms) {
 export async function pollDatabase() {
 
   try {
-    const onboardingData = await serviceModSvcI.FetchPendingVehicleOnboarding();
+    const onboardingData = await serviceModSvcI.FetchPendingVehicleOnboarding(ONBOARDING_STATUS.PENDING);
 
     for (const data of onboardingData) {
-      if (!processingQueue.find(eachdata => eachdata.muserid === data.muserid && eachdata.chassis_number === data.chassis_number && eachdata.mobileno === data.mobileno)) {
+      if (!processingQueue.find(eachdata => eachdata.muserid === data.muserid && eachdata.vinno === data.vinno && eachdata.mobileno === data.mobileno)) {
         processingQueue.push(data);
         console.log(`Onboarding request with muserid ${data.muserid} added to processing queue`);
       }
@@ -49,22 +55,28 @@ export async function processQueue() {
 
   while (true) {
     try {
-      const result = await callAuthExternalAPI(onboardingData);
-
+      const vehicleDetails = await serviceModSvcI.GetSingleVehicleDetail(onboardingData.vinno);
+      let model = getADCModel(vehicleDetails[0].modelDisplayName);
+      const chassisNumber = getChassisNumber(onboardingData.vinno);
+      if (!model) {
+        model = "A301";
+      }
+      let onboardingObj = {
+        userId: onboardingData.muserid,
+        mobileNumber: onboardingData.mobileno,
+        flow: "OWNED",
+        isWhatsAppConsented: true,
+        registrationNumber: vehicleDetails[0].regno,
+        chassisNumber: chassisNumber,
+        modelGroup: model,
+        modelDescription: model
+      }
+      const result = await callAuthExternalAPI(onboardingObj);
       if (result.status === 'success') {
-        await serviceModSvcI.MarkVehicleOnboarded(onboardingData);
+        await serviceModSvcI.MarkVehicleOnboarded(onboardingData.vinno, onboardingObj.mobileNumber, onboardingObj.userId, ONBOARDING_STATUS.COMPLETED);
         break;
       } else if (result.status === 'error') {
-        await serviceModSvcI.MoveToErrorTable(onboardingData, result.errorData, { 
-            userId: onboardingData.muserid,
-            mobileNumber: onboardingData.mobileno,
-            flow: "OWNED",
-            isWhatsAppConsented: true,
-            registrationNumber: onboardingData.chassis_number,
-            chassisNumber: onboardingData.chassis_number,
-            modelGroup: onboardingData.model,
-            modelDescription: onboardingData.model
-        });
+        await serviceModSvcI.MoveToErrorTable({...onboardingObj, vinno: onboardingData.vinno }, result.errorData);
         break;
       }
     } catch (err) {
@@ -80,14 +92,14 @@ export async function processQueue() {
 async function callAuthExternalAPI(onboardingData) {
   try {
     await axios.post(`${config.mahindrasvc.baseurl}/user/v2/auth/external`, {
-        userId: onboardingData.muserid,
-        mobileNumber: onboardingData.mobileno,
+        userId: onboardingData.userId,
+        mobileNumber: onboardingData.mobileNumber,
         flow: "OWNED",
         isWhatsAppConsented: true,
-        registrationNumber: onboardingData.chassis_number,
-        chassisNumber: onboardingData.chassis_number,
-        modelGroup: onboardingData.model,
-        modelDescription: onboardingData.model
+        registrationNumber: onboardingData.registrationNumber,
+        chassisNumber: onboardingData.chassisNumber,
+        modelGroup: onboardingData.modelGroup,
+        modelDescription: onboardingData.modelDescription
       },{
       headers: {
         'Content-Type': 'application/json',
@@ -126,7 +138,7 @@ export function startPolling() {
 }
 
 export function stopPolling() {
-    if (pollDatabaseTimeout) clearTimeout(pollDatabaseTimeout);
-    if (processQueueTimeout) clearTimeout(processQueueTimeout);
-    if (pollProcessQueueTimeout) clearTimeout(pollProcessQueueTimeout);
+    if (pollDatabaseTimeout) {clearTimeout(pollDatabaseTimeout);}
+    if (processQueueTimeout) {clearTimeout(processQueueTimeout);}
+    if (pollProcessQueueTimeout) {clearTimeout(pollProcessQueueTimeout);}
 }

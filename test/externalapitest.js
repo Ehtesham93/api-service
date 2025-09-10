@@ -1,16 +1,16 @@
-import * as Wrappers from "../wrappers/wrappers.js";
+import * as Wrappers from "../app/utils/wrappers.js";
 import { v4 as uuidv4 } from 'uuid';
 
-let requestId = uuidv4();
-let mobile = "9424469525";
-let chassisNumber = "MJK32370";
-let model = "TREO";
-let accountid = "81861428-fe9c-4937-9d7e-ea5bb5c700d8";
+const requestId = uuidv4();
+const mobile = "9424469525";
+const chassisNumber = "MJK32370";
+const model = "TREO";
+const accountid = "81861428-fe9c-4937-9d7e-ea5bb5c700d8";
 let token;
 let refreshToken;
 
 try {
-    let res = await Wrappers.getAuthToken({ accountid, muserid: "NEMO3.0-ADC-USERID-9410748307" }, requestId);
+    const res = await Wrappers.getAuthToken({ accountid, muserid: "NEMO3.0-ADC-USERID-9410748307" }, requestId);
     if (res) {
         console.log('getAuthToken working');
         token = res;
@@ -46,10 +46,10 @@ try {
 // }
 
 try {
-    let res = await Wrappers.getKilometers({ mobileNumber: mobile, chassisNumber }, token, requestId);
+    const res = await Wrappers.getKilometers({ mobileNumber: mobile, chassisNumber }, token, requestId);
     if (Object.keys(res).includes('data')
         && Object.values(res).includes("Data fetch success"))
-        console.log('getKilometers working');
+        {console.log('getKilometers working');}
     else {
         console.log('getKilometers not working');
     }
@@ -58,7 +58,7 @@ try {
 }
 
 try {
-    let res = await Wrappers.searchNearestDealers({
+    const res = await Wrappers.searchNearestDealers({
         "itemIndex": 0,
         "modelGroupDesc": model,
         "pageSize": 10,
@@ -69,7 +69,7 @@ try {
     }, token, requestId);
     if (Object.keys(res).includes('data')
         && Object.values(res)[1].length > 0)
-        console.log('searchNearestDealers working');
+        {console.log('searchNearestDealers working');}
     else {
         console.log('searchNearestDealers not working');
     }
@@ -81,7 +81,7 @@ let parentCode;
 let locationCode;
 
 try {
-    let res = await Wrappers.searchDealers({
+    const res = await Wrappers.searchDealers({
         "chassisNumber": chassisNumber,
         "itemIndex": 0,
         "mobileNumber": mobile,
@@ -111,7 +111,7 @@ function getTomorrowDate() {
 }
 
 try {
-    let res = await Wrappers.getDealerServiceSlots({
+    const res = await Wrappers.getDealerServiceSlots({
         "mobileNumber": mobile,
         "parentCode": parentCode,
         "locationCode": locationCode,
@@ -125,7 +125,7 @@ try {
         Array.isArray(res.data[getTomorrowDate()]) &&
         res.data[getTomorrowDate()].length > 0
     )
-        console.log('getDealerServiceSlots working');
+        {console.log('getDealerServiceSlots working');}
     else {
         console.log('getDealerServiceSlots not working');
     }
@@ -135,7 +135,7 @@ catch (error) {
 }
 
 try {
-    let res = await Wrappers.getDealers({
+    const res = await Wrappers.getDealers({
         "chassis": chassisNumber,
         "latitude": "12.94715 ",
         "longitude": "77.57888",
@@ -157,7 +157,7 @@ try {
 }
 
 try {
-    let res = await Wrappers.getCancellationReasons(token, requestId);
+    const res = await Wrappers.getCancellationReasons(token, requestId);
     if (
         res &&
         res.data &&
@@ -173,7 +173,7 @@ try {
 }
 
 try {
-    let res = await Wrappers.getAdditionalJobs(model, token, requestId);
+    const res = await Wrappers.getAdditionalJobs(model, token, requestId);
     if (
         res &&
         res.data &&
@@ -190,7 +190,7 @@ try {
 }
 
 try {
-    let res = await Wrappers.getSOSReasons(model, token, requestId);
+    const res = await Wrappers.getSOSReasons(model, token, requestId);
     if (
         res &&
         res.data &&
@@ -206,7 +206,7 @@ try {
 }
 
 try {
-    let res = await Wrappers.getShieldSchemes({
+    const res = await Wrappers.getShieldSchemes({
         "mobileNumber": mobile,
         "chassisNumber": chassisNumber,
         "modelGroupDesc": model,
@@ -227,7 +227,7 @@ try {
 }
 
 try {
-    let res = await Wrappers.getShieldPaymentMetadata({
+    const res = await Wrappers.getShieldPaymentMetadata({
         "address": "hkdbjdhbf",
         "chassisNumber": chassisNumber,
         "customerId": "JANJ134",
@@ -265,7 +265,7 @@ try {
 }
 
 try {
-    let res = await Wrappers.sendSosRequest({
+    const res = await Wrappers.sendSosRequest({
         "name": "P",
         "mobileNumber": mobile,
         "chassisNumber": chassisNumber,
@@ -290,7 +290,7 @@ try {
 }
 
 try {
-    let res = await Wrappers.getRsaPaymentMetadata({
+    const res = await Wrappers.getRsaPaymentMetadata({
         "mobileNumber": mobile,
         "chassisNumber": chassisNumber,
         "customerId": "CUST123",
@@ -334,7 +334,7 @@ function getTomorrowDate2() {
 }
 
 try {
-    let res = await Wrappers.bookServiceRequest({
+    const res = await Wrappers.bookServiceRequest({
         "bookingType": "REGULAR",
         "chassisNumber": chassisNumber,
         "dropAddress": "",
@@ -368,7 +368,7 @@ let appointmentId;
 let dmsBookingId;
 
 try {
-    let res = await Wrappers.getServiceBookingStatus({
+    const res = await Wrappers.getServiceBookingStatus({
         "mobileNumber": mobile,
         "chassisNumber": chassisNumber
     }, token, requestId);
@@ -392,7 +392,7 @@ try {
 let reason;
 
 try {
-    let res = await Wrappers.getCancellationReasons(token, requestId);
+    const res = await Wrappers.getCancellationReasons(token, requestId);
     if (
         res &&
         res.data &&
@@ -409,7 +409,7 @@ try {
 }
 
 try {
-    let res = await Wrappers.additionalJobs({ modelDesc: model }, token, requestId);
+    const res = await Wrappers.additionalJobs({ modelDesc: model }, token, requestId);
     if (
         res &&
         res.data &&
@@ -427,7 +427,7 @@ try {
 }
 
 try {
-    let res = await Wrappers.cancelAppointment({
+    const res = await Wrappers.cancelAppointment({
         "appointmentId": appointmentId,
         "chassisNumber": chassisNumber,
         "dmsBookingId": dmsBookingId,
@@ -448,7 +448,7 @@ try {
 }
 
 try {
-    let res = await Wrappers.getServiceHistory({
+    const res = await Wrappers.getServiceHistory({
         "mobileNumber": mobile,
         "chassisNumber": chassisNumber,
         "isThisYear": true

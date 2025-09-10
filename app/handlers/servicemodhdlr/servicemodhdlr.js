@@ -1,545 +1,438 @@
-import {
-    APIResponseInternalErr,
-    APIResponseOK,
-    APIResponseBadRequest,
-} from "../../utils/responseutil.js";
-import { AuthenticateAccountTokenFromCookie } from "../../utils/tokenutil.js";
-import ServiceModHdlrImpl from "./servicemodhdlr_impl.js";
-import { z } from "zod";
+import { z } from 'zod';
+import { APIResponseOK, APIResponseBadRequest, APIResponseInternalErr } from '../../utils/responseutil.js';
+import { AuthenticateAccountTokenFromCookie } from '../../utils/tokenutil.js';
+import ServiceModHdlrImpl from './servicemodhdlr_impl.js';
+import { userFriendlyError, convertEpochToIST,  getADCModel } from '../../utils/util.js';
 
 export default class ServiceModHdlr {
-    constructor(serviceModSvcI, logger) {
+    constructor(serviceModSvcI, wrapperI, logger, config) {
         this.serviceModSvcI = serviceModSvcI;
         this.logger = logger;
-        this.serviceModHdlrI = new ServiceModHdlrImpl(serviceModSvcI, logger);
+        this.serviceModHdlrI = new ServiceModHdlrImpl(serviceModSvcI, wrapperI, logger, config);
     }
 
     // TODO: add permission check for each route
     // TODO: add request validation for each route
     RegisterRoutes(router) {
-        router.post("/settoken", this.setToken);
+        router.post('/settoken', this.setToken);
+        //vehicle onboarding
+        router.post('/vehicle/onboarding', this.VehicleOnboarding);
+
+        
         router.use(AuthenticateAccountTokenFromCookie);
 
-        router.get("/overview", this.GetServiceOverview);
-        router.get("/types", this.GetServiceTypes);
-        router.get("/cancel/reasons", this.GetCancelReasons);
-        router.post("/booking", this.CreateVehicleServiceBooking);
-        router.put("/booking", this.ReschVehicleServiceBooking);
-        router.post("/booking/cancel", this.CancelVehicleServiceBooking);
-        router.post("/cost/estimate", this.GetVehicleServiceCostEstimate);
-        router.get("/shedulejobtypes", this.GetSheduleJobTypes);
+        //overview
+        router.get('/overview', this.GetServiceOverview);
+        router.get('/vehicles/list', this.GetVehiclesInService);
 
-        // dealer
-        router.post("/dealer/list/search", this.ListDealerSearch);
-        router.post("/dealers", this.ListDealers);
-        router.post("/dealer/slots", this.GetDealerSlots);
-        router.post("/dealer/search/nearest", this.ListNearestDealersSearch);
-
-        //SOS
-        router.post("/sos/reasons", this.GetSOSReasons);
-        router.post("/raise/sos", this.RaiseSOS);
+        //booking
+        router.get('/types', this.GetServiceTypes);
+        router.post('/dealers', this.ListDealers);
+        router.post('/dealer/slots', this.GetDealerSlots);
+        router.post('/booking', this.CreateVehicleServiceBooking);
+        router.post('/vehicle/status', this.GetVehicleServiceStatus);
+        router.put('/booking', this.ReschVehicleServiceBooking);
+        router.get('/cancel/reasons', this.GetCancelReasons);
+        router.post('/booking/cancel', this.CancelVehicleServiceBooking);
 
         // vehicles
-        router.get("/vehicles/list", this.GetVehiclesInService);
-        router.get("/vehicle/history", this.GetVehicleServiceHistory);
-        router.post("/vehicle/status", this.GetVehicleServiceStatus);
-        router.post("/vehicle/onboarding", this.VehicleOnboarding);
-        router.get("/vehicle/info", this.GetVehicleInfo);
-        router.post("/vehicle/invoice", this.GetInvoice);
-        router.get("/vehicle/external/info", this.GetExternalVehicleInfo);
+        router.get('/vehicle/history', this.GetVehicleServiceHistory);
+        router.get('/vehicle/info', this.GetVehicleInfo);
+        router.post('/vehicle/invoice', this.GetInvoice);
+        router.get('/vehicle/external/info', this.GetExternalVehicleInfo);
 
-        //Kilometers
-        router.post("/kilometers", this.GetKilometers);
+        // dealer
+        router.post('/dealer/list/search', this.ListDealerSearch);
+        router.post('/dealer/search/nearest', this.ListNearestDealersSearch);
+
+        //SOS
+        router.post('/sos/reasons', this.GetSoSDetails);
+        router.post('/raise/sos', this.RaiseSOS);
+
+        //not used
+        router.post('/kilometers', this.GetKilometers);
     }
+
+    setToken = async (req, res, next) => {
+        try {
+            const token = req.body.token;
+            const schema = z.object({
+                token: z.string({ message: 'token is required' }).nonempty({ message: 'token cannot be empty' }),
+            });
+            schema.parse({ token });
+            const cookieOptions = {
+                httpOnly: false,
+                secure: false,
+                sameSite: 'lax',
+                maxAge: 24 * 60 * 60 * 1000,
+            };
+            res.cookie('token', token, cookieOptions);
+            APIResponseOK(
+                req,
+                res,
+                {
+                    message: 'Token set successfully in cookie',
+                    cookieSet: true,
+                    swaggerReady: true,
+                },
+                'Token set in cookie successful'
+            );
+        } catch (error) {
+            if (error.errcode === 'INPUT_ERROR') {
+                APIResponseBadRequest(req, res, error.errcode, error.errdata, error.message);
+            } else {
+                APIResponseInternalErr(req, res, 'SET_TOKEN_ERR', error.toString(), 'Set token failed');
+            }
+        }
+    };
 
     VehicleOnboarding = async (req, res, next) => {
         try {
-            let userid = req.userid;
-            let accountid = req.accountid;
-            let vinno = req.body.vinno;
-            let mobileno = req.body.mobileno
-            let model = req.body.model;
+            const { vinno, mobileno } = req.body;
             const schema = z.object({
-                vinno: z.string().length(17, "Invalid VIN number must be 17 characters long"),
-                mobileno: z.string().regex(/^(\+?[1-9]\d{7,14}|[0-9]{10})$/, "Invalid mobile number must be 10 digits long"),
-                model: z.string({ message: "Invalid model parameter must be a string" }).optional()
+                vinno: z
+                    .string({ message: 'Invalid vinno parameter, must be a string' })
+                    .length(17, 'Invalid VIN number must be 17 characters long')
+                    .regex(/^[A-Za-z0-9](?:[A-Za-z0-9 ]*[A-Za-z0-9])?$/, "VIN must contain only letters, numbers, and spaces, and must not start or end with a space"),
+                mobileno: z
+                    .string({ message: 'Invalid mobileno parameter, must be a string' })
+                    .regex(/^(\+?[1-9]\d{7,14}|[6789]\d{9})$/, 'Invalid mobile number must be 10 digits long and start with 6, 7, 8, or 9'),
             });
-            schema.parse({ vinno, mobileno, model });
-            let result = await this.serviceModHdlrI.VehicleOnboardingLogic(accountid, userid, vinno, mobileno, model);
-            APIResponseOK(req, res, result, "Account vehicle onboarding completed successfully");
-        } catch (e) {
-            if (e instanceof z.ZodError) {
-                APIResponseBadRequest(req, res, "INVALID_REQUEST_PARAMS", e.issues.map(issue => {
-                    return {
-                        field: issue.path[0],
-                        message: issue.message,
-                        expected: issue.expected
-                    }
-                }));
-                return;
-            }
-            APIResponseInternalErr(req, res, "USER_VEHICLE_ONBOARDING_ERR", e?.toString(), e?.toString() || "Account vehicle onboarding failed.");
+            this.validateAllInputs(schema, { vinno, mobileno });
+            const result = await this.serviceModHdlrI.VehicleOnboardingLogic(vinno, mobileno);
+            APIResponseOK(req, res, "vehicle onboarding request submitted successfully", result);
+        } catch (error) {
+            this.handleError(req, res, error);
         }
-    }
+    };
 
     GetServiceOverview = async (req, res, next) => {
         try {
-            let accountid = req.accountid;
-            let userid = req.userid;
-            let isRecursive = req.query.isrecursive;
-            let fleetid = req.query.fleetid;
-            let startdate = req.query.startdate;
-            const schema = z.object({
-                isRecursive: z.string({ message: "Invalid isrecursive parameter, must be true or false" }),
-                fleetid: z.uuid({ message: "Invalid fleetid parameter, must be a valid UUID" }),
-                startdate: z.string({ message: "Invalid servicedwindow parameter, must be a valid date" }).optional()
-            });
-            schema.parse({ isRecursive, fleetid, startdate });
+            const accountid = req.accountid;
+            const userid = req.userid;
             const cookie = req.cookie;
-            typeof isRecursive == "string" ? isRecursive = isRecursive == "true" : isRecursive = false;
-            let result = await this.serviceModHdlrI.GetServiceOverviewLogic(accountid, userid, isRecursive, fleetid, cookie, startdate);
-            APIResponseOK(req, res, result, "Service overview fetched successfully");
-        } catch (e) {
-            if (e instanceof z.ZodError) {
-                APIResponseBadRequest(req, res, "INVALID_REQUEST_PARAMS", e.issues.map(issue => {
-                    return {
-                        field: issue.path[0],
-                        message: issue.message,
-                        expected: issue.expected
-                    }
-                }));
-                return;
+
+            if (req.query.startdate && typeof req.query.startdate === 'string') {
+                req.query.startdate = Number(req.query.startdate);
             }
-            APIResponseInternalErr(req, res, "GET_SERVICE_OVERVIEW_ERR", e?.toString(), e?.toString() || "Unable to fetch service overview. please try again.");
+
+            const schema = z.object({
+                recursive: z.enum(['true', 'false'], { message: 'Invalid recursive parameter, must be true or false' }),
+                fleetid: z.uuid({ message: 'Invalid fleetid parameter, must be a valid UUID' }),
+                startdate: z
+                    .number({ message: 'Invalid startdate parameter, must be a number' })
+                    .min(new Date(0).getTime(), { message: 'Invalid startdate parameter, must be more than jan 1st 1970' })
+                    .max(Date.now(), { message: 'Invalid startdate parameter, cannot be more than current timestamp' })
+                    .optional(),
+            });
+            this.validateAllInputs(schema, req.query);
+            const { recursive, fleetid, startdate } = req.query;
+            const recursiveBool = recursive === 'true';
+
+            const result = await this.serviceModHdlrI.GetServiceOverviewLogic(accountid, fleetid, userid, recursiveBool, cookie, startdate);
+            APIResponseOK(req, res, result, 'Service overview fetched successfully');
+        } catch (error) {
+            this.handleError(req, res, error);
         }
-    }
+    };
+
+    TabType = {
+        ALL: 'all',
+        OVERDUE: 'overdue',
+        BOOKED: 'booked',
+        INSERVICE: 'inservice',
+        SERVICED: 'serviced',
+    };
 
     GetVehiclesInService = async (req, res, next) => {
         try {
-
-            let accountid = req.accountid;
-            let userid = req.userid;
-            let fleetid = req.query.fleetid;
-            let isRecursive = req.query.isrecursive;
-            let tabid = req.query.tabid || 'all';
-            let startdate = req.query.startdate;
-            const schema = z.object({
-                fleetid: z.uuid({ message: "Invalid fleetid parameter must be a valid UUID" }),
-                isRecursive: z.string({ message: "Invalid isrecursive parameter must be true or false" }),
-                tabid: z.string({ message: "Invalid tabid parameter must be a valid tabid" }).optional(),
-                startdate: z.string({ message: "Invalid servicedwindow parameter must be a valid date" }).optional()
-            });
-            schema.parse({ fleetid, isRecursive, tabid, startdate });
-
+            const accountid = req.accountid;
+            const userid = req.userid;
             const cookie = req.cookie;
 
-            typeof isRecursive == "string" ? isRecursive = isRecursive == "true" : isRecursive = false;
-            let result = await this.serviceModHdlrI.GetVehiclesInServiceLogic(accountid, userid, isRecursive, fleetid, tabid, cookie, startdate);
-            APIResponseOK(req, res, result, "Vehicles service fetched successfully");
-        } catch (e) {
-            if (e instanceof z.ZodError) {
-                APIResponseBadRequest(req, res, "INVALID_REQUEST_PARAMS", e.issues.map(issue => {
-                    return {
-                        field: issue.path[0],
-                        message: issue.message,
-                        expected: issue.expected
-                    }
-                }));
-                return;
+            if (req.query.startdate && typeof req.query.startdate === 'string') {
+                req.query.startdate = Number(req.query.startdate);
             }
-            APIResponseInternalErr(req, res, "GET_VEHICLES_IN_SERVICE_ERR", e?.toString(), e?.toString() || "Unable to fetch vehicles. please try again.");
-        }
-    }
 
-    GetVehicleServiceHistory = async (req, res, next) => {
-        try {
-
-            let accountid = req.accountid;
-            let userid = req.userid;
-            let vinno = req.query.vinno;
             const schema = z.object({
-                vinno: z.string().length(17, "Invalid VIN number must be 17 characters long")
+                recursive: z.enum(['true', 'false'], { message: 'Invalid recursive parameter, must be true or false' }),
+                fleetid: z.uuid({ message: 'Invalid fleetid parameter, must be a valid UUID' }),
+                tabid: z
+                    .enum([this.TabType.ALL, this.TabType.OVERDUE, this.TabType.BOOKED, this.TabType.INSERVICE, this.TabType.SERVICED], { message: 'Invalid tabid parameter, must be a valid tabid' })
+                    .optional(),
+                startdate: z
+                    .number({ message: 'Invalid startdate parameter, must be a number' })
+                    .min(new Date(0).getTime(), { message: 'Invalid startdate parameter, must be more than jan 1st 1970' })
+                    .max(Date.now(), { message: 'Invalid startdate parameter, cannot be more than current timestamp' })
+                    .optional(),
             });
-            schema.parse({ vinno });
-            let result = await this.serviceModHdlrI.GetVehicleServiceHistoryLogic(accountid, userid, vinno);
-            APIResponseOK(req, res, result, "Vehicle service history fetched successfully");
-        } catch (e) {
-            if (e instanceof z.ZodError) {
-                APIResponseBadRequest(req, res, "INVALID_REQUEST_PARAMS", e.issues.map(issue => {
-                    return {
-                        field: issue.path[0],
-                        message: issue.message,
-                        expected: issue.expected
-                    }
-                }));
-                return;
-            }
-            APIResponseInternalErr(req, res, "GET_VEHICLE_SERVICE_HISTORY_ERR", e?.toString(), e?.toString() || "Unable to fetch the vehicle service history. please try again.");
+            this.validateAllInputs(schema, req.query);
+
+            const { recursive, fleetid, tabid, startdate } = req.query;
+            const recursiveBool = recursive === 'true';
+            const result = await this.serviceModHdlrI.GetVehiclesInServiceLogic(accountid, fleetid, userid, recursiveBool, tabid, cookie, startdate);
+            APIResponseOK(req, res, result, 'Vehicles service fetched successfully');
+        } catch (error) {
+            this.handleError(req, res, error);
         }
-    }
-
-    GetVehicleServiceStatus = async (req, res, next) => {
-        try {
-
-            let accountid = req.accountid;
-            let userid = req.userid;
-            let vinno = req.body.vinno;
-            let bookingid = req.body.bookingid;
-            const schema = z.object({
-                vinno: z.string().length(17, "Invalid VIN number must be 17 characters long"),
-                bookingid: z.uuid({ message: "Invalid bookingid parameter must be a valid UUID" })
-            });
-            schema.parse({ vinno, bookingid });
-            let result = await this.serviceModHdlrI.GetVehicleServiceStatusLogic(accountid, userid, vinno, bookingid);
-            if (result?.error) {
-                APIResponseOK(req, res, null, null, "No status updates.");
-                return;
-            }
-            APIResponseOK(req, res, result, "Vehicle service status fetched successfully");
-        } catch (e) {
-            if (e instanceof z.ZodError) {
-                APIResponseBadRequest(req, res, "INVALID_REQUEST_PARAMS", e.issues.map(issue => {
-                    return {
-                        field: issue.path[0],
-                        message: issue.message,
-                        expected: issue.expected
-                    }
-                }));
-                return;
-            }
-            APIResponseInternalErr(req, res, "GET_VEHICLE_SERVICE_STATUS_ERR", e?.toString(), e?.toString() || "Unable to fetch the vehicle service status. please try again.");
-        }
-    }
-
-    GetInvoice = async (req, res, next) => {
-        try {
-            let accountid = req.accountid;
-            let userid = req.userid;
-            let vinno = req.body.vinno;
-            let robillnumber = req.body.robillnumber;
-            let bookingid = req.body.bookingid;
-            const schema = z.object({
-                vinno: z.string({ message: "Invaild vin number, must be a string type" }).length(17, "Invalid VIN number must be 17 characters long"),
-                robillnumber: z.string({ message: "Invalid robillnumber parameter must be a string" }),
-                bookingid: z.uuid({ message: "Invalid bookingid parameter must be a valid UUID" })
-            });
-            schema.parse({ vinno, robillnumber, bookingid });
-            let result = await this.serviceModHdlrI.GetInvoiceLogic(accountid, userid, vinno, robillnumber, bookingid);
-            APIResponseOK(req, res, result, "Invoice fetched successfully");
-        } catch (e) {
-            if (e instanceof z.ZodError) {
-                APIResponseBadRequest(req, res, "INVALID_REQUEST_PARAMS", e.issues.map(issue => {
-                    return {
-                        field: issue.path[0],
-                        message: issue.message,
-                        expected: issue.expected
-                    }
-                }));
-                return;
-            }
-            APIResponseInternalErr(req, res, "GET_INVOICE_ERR", e?.toString(), e?.toString() || "Unable to fetch the invoice for the service. please try again.");
-        }
-    }
-
+    };
 
     GetServiceTypes = async (req, res, next) => {
         try {
-
-            let accountid = req.accountid;
-            let modelDesc = req.query.modelDesc || "TREO";
-            const schema = z.object({
-                modelDesc: z.string({ message: "Invalid modelDesc parameter must be a string" }).optional()
-            });
-            schema.parse({ modelDesc })
-            let result = await this.serviceModHdlrI.GetServiceTypesLogic(accountid, modelDesc);
-            APIResponseOK(req, res, result, "Service types fetched successfully");
-        } catch (e) {
-            if (e instanceof z.ZodError) {
-                APIResponseBadRequest(req, res, "INVALID_REQUEST_PARAMS", e.issues.map(issue => {
-                    return {
-                        field: issue.path[0],
-                        message: issue.message,
-                        expected: issue.expected
-                    }
-                }));
-            }
-            APIResponseInternalErr(req, res, "GET_SERVICE_TYPES_ERR", e?.toString(), e?.toString() || "Unable to fetch the service types. please try again.");
+            const result = await this.serviceModHdlrI.GetServiceTypesLogic();
+            APIResponseOK(req, res, result, 'Service types fetched successfully');
+        } catch (error) {
+            this.handleError(req, res, error);
         }
-    }
-
-    CreateVehicleServiceBooking = async (req, res, next) => {
-        try {
-
-            let userid = req.userid;
-            let accountid = req.accountid;
-            const cookie = req.cookie;
-            const { vinno, servicetype, kilometer, modeldisplayname, parentgroup, locationcode, dealername, dealeraddress, slot } = req.body;
-            const schema = z.object({
-                vinno: z.string({ message: "Invalid vinno parameter, must be a string" }).length(17, "Invalid VIN number must be 17 characters long"),
-                servicetype: z.string({ message: "Invalid servicetype parameter, must be a string" }),
-                kilometer: z.string({ message: "Invalid kilometer parameter, must be a string" }).optional(),
-                modeldisplayname: z.string({ message: "Invalid modeldisplayname parameter, must be a string" }),
-                parentgroup: z.string({ message: "Invalid parentgroup parameter, must be a string" }),
-                locationcode: z.string({ message: "Invalid locationcode parameter, must be a string" }),
-                dealername: z.string({ message: "Invalid dealername parameter, must be a string" }),
-                dealeraddress: z.string({ message: "Invalid dealeraddress parameter, must be a string" }),
-                slot: z.number({ message: "Invalid slot parameter, must be a number" }).int({ message: "Invalid slot parameter, must be integer" }).min(Date.now(), "Invalid slot parameter, must be greater than current date.")
-            });
-            schema.parse({ vinno, servicetype, kilometer, modeldisplayname, parentgroup, locationcode, dealername, dealeraddress, slot });
-            let result = await this.serviceModHdlrI.CreateVehicleServiceBookingLogic(accountid,
-                userid,
-                vinno,
-                servicetype,
-                kilometer,
-                modeldisplayname,
-                parentgroup,
-                locationcode,
-                dealername,
-                dealeraddress,
-                slot,
-                cookie);
-            APIResponseOK(req, res, result, "Vehicle service booking created successfully");
-        } catch (e) {
-            if (e instanceof z.ZodError) {
-                APIResponseBadRequest(req, res, "INVALID_REQUEST_BODY", e.issues.map(issue => {
-                    return {
-                        field: issue.path[0],
-                        message: issue.message,
-                        expected: issue.expected
-                    }
-                }));
-                return;
-            }
-            APIResponseInternalErr(req, res, "CREATE_VEHICLE_SERVICE_BOOKING_ERR", e?.toString(), e?.toString(), "Unable to book a service for the vehicle.");
-        }
-    }
-
-    GetCancelReasons = async (req, res, next) => {
-        try {
-            let result = await this.serviceModHdlrI.GetCancelReasonsLogic();
-            APIResponseOK(req, res, result, "Cancel reasons fetched successfully");
-        } catch (e) {
-            APIResponseInternalErr(req, res, "GET_CANCEL_REASONS_ERR", e?.toString(), e?.toString() || "Unable to fetch the cancellation reasons. please try again.");
-        }
-    }
-
-    CancelVehicleServiceBooking = async (req, res, next) => {
-        try {
-
-            let accountid = req.accountid;
-            let userid = req.userid;
-            let bookingid = req.body.bookingid;
-            let reason = req.body.reason;
-            let vinno = req.body.vinno;
-            const schema = z.object({
-                bookingid: z.uuid({ message: "Invalid bookingid parameter, must be a valid UUID" }),
-                reason: z.string({ message: "Invalid reason parameter, must be a string" }),
-                vinno: z.string({ message: "Invalid vinno parameter, must be a string" }).length(17, "Invalid VIN number, must be 17 characters long")
-            });
-            schema.parse({ bookingid, reason, vinno });
-            const cookie = req.cookie;
-            let result = await this.serviceModHdlrI.CancelVehicleServiceBookingLogic(accountid, userid, bookingid, vinno, reason, cookie);
-            APIResponseOK(req, res, result, "Vehicle service booking cancelled successfully");
-        } catch (e) {
-            if (e instanceof z.ZodError) {
-                APIResponseBadRequest(req, res, "INVALID_REQUEST_BODY", e.issues.map(issue => {
-                    return {
-                        field: issue.path[0],
-                        message: issue.message,
-                        expected: issue.expected
-                    }
-                }));
-                return;
-            }
-            APIResponseInternalErr(req, res, "CANCEL_VEHICLE_SERVICE_BOOKING_ERR", e?.toString(), e?.toString() || "Unable to cancel the booking for the vehicle. please try again.");
-        }
-    }
-
-    GetVehicleServiceCostEstimate = async (req, res, next) => {
-        try {
-
-            let accountid = req.accountid;
-            let userid = req.userid;
-            let vinno = req.body.vinno;
-            let selectedkm = req.body.selectedkm;
-            let model = req.body.model || "TREO";
-            const schema = z.object({
-                vinno: z.string({ message: "Invalid vinno parameter, must be a string" }).length(17, "Invalid VIN number, must be 17 characters long"),
-                selectedkm: z.string({ message: "Invalid selectedkm parameter, must be a string" }),
-                model: z.string({ message: "Invalid model parameter, must be a string" }).optional()
-            });
-            schema.parse({ vinno, selectedkm, model });
-            let result = await this.serviceModHdlrI.GetVehicleServiceCostEstimateLogic(accountid, userid, vinno, selectedkm, model);
-            APIResponseOK(req, res, result, "Vehicle service cost estimate fetched successfully");
-        } catch (e) {
-            if (e instanceof z.ZodError) {
-                APIResponseBadRequest(req, res, "INVALID_REQUEST_BODY", e.issues.map(issue => {
-                    return {
-                        field: issue.path[0],
-                        message: issue.message,
-                        expected: issue.expected
-                    }
-                }));
-                return;
-            }
-            APIResponseInternalErr(req, res, "GET_VEHICLE_SERVICE_COST_ESTIMATE_ERR", e?.toString(), e?.toString() || "Unable to fetch the cost estimate for the service. please try again.");
-        }
-    }
+    };
 
     ListDealers = async (req, res, next) => {
         try {
             const userid = req.userid;
             const accountid = req.accountid;
-            const { vinno, latitude, longitude, modelDesc } = req.body;
+            const { vinno, latitude, longitude, modeldisplayname } = req.body;
+            const cookie = req.cookie;
             const schema = z.object({
-                vinno: z.string({ message: "Invalid vinno parameter, must be a string" }).length(17, "Invalid VIN number, must be 17 characters long"),
-                latitude: z.number({ message: "Invalid latitude parameter, must be a number" }),
-                longitude: z.number({ message: "Invalid longitude parameter, must be a number" }),
-                modelDesc: z.string({ message: "Invalid modelDesc parameter, must be a string" }).optional()
+                vinno: z
+                    .string({ message: 'Invalid vinno parameter, must be a string' })
+                    .length(17, { message: 'Invalid VIN number, must be 17 characters long' })
+                    .regex(/^[A-Za-z0-9](?:[A-Za-z0-9 ]*[A-Za-z0-9])?$/, "VIN must contain only letters, numbers, and spaces, and must not start or end with a space"),
+                latitude: z
+                    .number({ message: 'Invalid latitude parameter, must be a number' })
+                    .refine((lat) => lat >= -90 && lat <= 90 && lat !== 0, { message: 'Invalid latitude: must be between -90 and 90 degrees and cannot be 0' }),
+                longitude: z
+                    .number({ message: 'Invalid longitude parameter, must be a number' })
+                    .refine((lng) => lng >= -180 && lng <= 180 && lng !== 0, { message: 'Invalid longitude: must be between -180 and 180 degrees and cannot be 0' }),
+                modeldisplayname: z.string({ message: 'Invalid modeldisplayname parameter, must be a string' }),
             });
-            schema.parse({ vinno, latitude, longitude, modelDesc });
-            let result = await this.serviceModHdlrI.ListDealersLogic(accountid, userid, vinno, latitude, longitude, modelDesc || "TREO");
-            APIResponseOK(req, res, result, "Dealers fetched successfully");
-        } catch (e) {
-            if (e instanceof z.ZodError) {
-                APIResponseBadRequest(req, res, "INVALID_REQUEST_BODY", e.issues.map(issue => {
-                    return {
-                        field: issue.path[0],
-                        message: issue.message,
-                        expected: issue.expected
-                    }
-                }));
-                return;
+            this.validateAllInputs(schema, req.body);
+            const modeldesc = getADCModel(modeldisplayname);
+            if (!modeldesc) {
+                throw {
+                    errcode: "NO_DEALER_FOUND"
+                }
             }
-            APIResponseInternalErr(req, res, "LIST_DEALERS_ERR", e?.toString(), e?.toString() || "Unable to fetch the dealers list.");
+            const result = await this.serviceModHdlrI.ListDealersLogic(accountid, userid, vinno, latitude, longitude, modeldesc, cookie);
+            APIResponseOK(req, res, result, 'Dealers fetched successfully');
+        } catch (error) {
+            this.handleError(req, res, error);
         }
-    }
+    };
 
     GetDealerSlots = async (req, res, next) => {
         try {
             const userid = req.userid;
             const accountid = req.accountid;
-            const { vinno, parentCode, locationCode, date } = req.body;
-            const schema = z.object({
-                vinno: z.string().length(17, "Invalid VIN number, must be 17 characters long"),
-                parentCode: z.string({ message: "Invalid parentCode parameter, must be a string" }),
-                locationCode: z.string({ message: "Invalid locationCode parameter, must be a string" }),
-                date: z.number({ message: "Invalid date parameter, must be a number" })
-                    .int({ message: "Invalid date parameter, must be integer" })
-                    .min(new Date(0).getTime(), "Invalid date parameter, must be greater than 01 Jan 1970.")
-            });
-            schema.parse({ vinno, parentCode, locationCode, date });
-            let result = await this.serviceModHdlrI.GetDealerSlotsLogic(accountid, userid, vinno, parentCode, locationCode, date);
-            APIResponseOK(req, res, result, "Dealer slots fetched successfully");
-        } catch (e) {
-            if (e instanceof z.ZodError) {
-                APIResponseBadRequest(req, res, "INVALID_REQUEST_BODY", e.issues.map(issue => {
-                    return {
-                        field: issue.path[0],
-                        message: issue.message,
-                        expected: issue.expected
-                    }
-                }));
-                return;
-            }
-            APIResponseInternalErr(req, res, "GET_DEALER_SLOTS_ERR", e?.toString(), e?.toString() || "Unable to fetch the dealer slots.");
-        }
-    }
-
-    ListDealerSearch = async (req, res, next) => {
-        try {
-
-            const userid = req.userid;
-            const accountid = req.accountid;
-            const { vinno, modelDesc, itemIndex, pageSize, searchFilter } = req.body;
-            const schema = z.object({
-                vinno: z.string().length(17, "Invalid VIN number, must be 17 characters long"),
-                modelDesc: z.string({ message: "Invalid modelDesc parameter, must be a string" }).optional(),
-                itemIndex: z.number({ message: "Invalid itemIndex parameter, must be a number" }).optional(),
-                pageSize: z.number({ message: "Invalid pageSize parameter, must be a number" }).optional(),
-                searchFilter: z.string({ message: "Invalid searchFilter parameter, must be a string" }).optional()
-            });
-            schema.parse({ vinno, modelDesc, itemIndex, pageSize, searchFilter });
-            let result = await this.serviceModHdlrI.ListDealerSearchLogic(accountid, userid, vinno, !modelDesc ? "TREO" : modelDesc, itemIndex, pageSize, searchFilter);
-            APIResponseOK(req, res, result, "Dealer search fetched successfully");
-        } catch (e) {
-            if (e instanceof z.ZodError) {
-                APIResponseBadRequest(req, res, "INVALID_REQUEST_BODY", e.issues.map(issue => {
-                    return {
-                        param: issue.path[0],
-                        message: issue.message,
-                        expected: issue.expected
-                    }
-                }));
-                return;
-            }
-            APIResponseInternalErr(req, res, "LIST_DEALER_SEARCH_ERR", e?.toString(), e?.toString() || "Unable to fetch the dealer list.");
-        }
-    }
-
-    GetSOSReasons = async (req, res, next) => {
-        try {
-
-            const userid = req.userid;
-            const accountid = req.accountid;
-            const model = req.body.model;
-            const vinno = req.body.vinno;
-            const schema = z.object({
-                model: z.string({ message: "Invalid model parameter, must be a string" }).optional(),
-                vinno: z.string().length(17, "Invalid VIN number, must be 17 characters long")
-            });
-            schema.parse({ model, vinno });
             const cookie = req.cookie;
-            let result = await this.serviceModHdlrI.GetSOSReasonsLogic(accountid, userid, vinno, model, cookie);
-            APIResponseOK(req, res, result, "SOS reasons fetched successfully");
-        } catch (e) {
-            if (e instanceof z.ZodError) {
-                APIResponseBadRequest(req, res, "INVALID_REQUEST_BODY", e.issues.map(issue => {
-                    return {
-                        field: issue.path[0],
-                        message: issue.message,
-                        expected: issue.expected
-                    }
-                }));
-                return;
-            }
-            APIResponseInternalErr(req, res, "GET_SOS_REASONS_ERR", e?.toString(), e?.toString() || "Unable to fetch the SOS reasons. please try again.");
+            const { vinno, date } = req.body;
+            const schema = z.object({
+                vinno: z
+                    .string({ message: 'Invalid vinno parameter, must be a string' })
+                    .length(17, { message: 'Invalid VIN number, must be 17 characters long' })
+                    .regex(/^[A-Za-z0-9](?:[A-Za-z0-9 ]*[A-Za-z0-9])?$/, "VIN must contain only letters, numbers, and spaces, and must not start or end with a space"),
+                date: z
+                    .number({ message: 'Invalid date parameter, must be a integer' })
+                    .min(Date.now(), { message: 'Invalid date parameter, must be greater than current date.' })
+                    .refine(
+                        (timestamp) => {
+                            const istDate = convertEpochToIST(timestamp);
+                            return istDate.includes('00:00:00');
+                        },
+                        { message: 'Invalid date parameter, must be 00:00:00 (midnight) for the given day in Asia/Kolkata timezone' }
+                    ),
+            });
+            this.validateAllInputs(schema, req.body);
+            const result = await this.serviceModHdlrI.GetDealerSlotsLogic(accountid, userid, vinno, date, cookie);
+            APIResponseOK(req, res, result, 'Dealer slots fetched successfully');
+        } catch (error) {
+            this.handleError(req, res, error);
         }
-    }
+    };
 
-    RaiseSOS = async (req, res, next) => {
+    CreateVehicleServiceBooking = async (req, res, next) => {
         try {
-
-            const accountid = req.accountid;
             const userid = req.userid;
-            let sosinfo = req.body;
-            const { name, vinno, issue, latitude, longitude, description } = sosinfo;
+            const accountid = req.accountid;
+            const cookie = req.cookie;
 
             const schema = z.object({
-                vinno: z.string({ message: "Invalid vinno parameter, must be a string" }).length(17, "Invalid VIN number, must be 17 characters long"),
-                issue: z.array(z.string({ message: "Invalid issue parameter, must be a string" })).min(1, "Issue must be an array of at least 1 string"),
-                latitude: z.number({ message: "Invalid latitude parameter, must be a number" }),
-                longitude: z.number({ message: "Invalid longitude parameter, must be a number" }),
-                description: z.string({ message: "Invalid description parameter, must be a string" })
+                vinno: z
+                    .string({ message: 'Invalid vinno parameter, must be a string' })
+                    .length(17, { message: 'Invalid vinno, must be 17 characters long' })
+                    .regex(/^[A-Za-z0-9](?:[A-Za-z0-9 ]*[A-Za-z0-9])?$/, "VIN must contain only letters, numbers, and spaces, and must not start or end with a space"),
+                servicetype: z.enum([this.ServiceType.ACCIDENTAL, this.ServiceType.REPAIR, this.ServiceType.SCHEDULED], { message: 'Invalid servicetype parameter, must be a string' }),
+                kilometer: z.string({ message: 'Invalid kilometer parameter, must be a string' }).optional(),
+                parentgroup: z
+                    .string({ message: 'Invalid parentgroup parameter, must be a string' })
+                    .max(50, { message: 'Invalid parentgroup, must be less than 50 characters' })
+                    .min(1, { message: 'Invalid parentgroup, must be greater than 0' }),
+                locationcode: z
+                    .string({ message: 'Invalid locationcode parameter, must be a string' })
+                    .max(50, { message: 'Invalid locationcode, must be less than 50 characters' })
+                    .min(1, { message: 'Invalid locationcode, must be greater than 0' }),
+                dealername: z
+                    .string({ message: 'Invalid dealername parameter, must be a string' })
+                    .max(100, { message: 'Invalid dealername, must be less than 255 characters' })
+                    .min(1, { message: 'Invalid dealername, must be greater than 0' }),
+                dealeraddress: z
+                    .string({ message: 'Invalid dealeraddress parameter, must be a string' })
+                    .max(255, { message: 'Invalid dealeraddress, must be less than 255 characters' })
+                    .min(1, { message: 'Invalid dealeraddress, must be greater than 0' }),
+                slot: z
+                    .number({ message: 'Invalid slot parameter, must be a number' })
+                    .int({ message: 'Invalid slot parameter, must be integer' })
+                    .min(Date.now(), { message: 'Invalid slot parameter, must be greater than current date.' }),
             });
-            schema.parse({ vinno, issue, latitude, longitude, description });
+            this.validateAllInputs(schema, req.body);
 
-            const result = await this.serviceModHdlrI.RaiseSOSLogic(accountid, userid, sosinfo);
-            APIResponseOK(req, res, result, "SOS raised successfully");
-        } catch (e) {
-            if (e instanceof z.ZodError) {
-                APIResponseBadRequest(req, res, "INVALID_REQUEST_BODY", e.issues.map(issue => {
-                    return {
-                        field: issue.path[0],
-                        message: issue.message,
-                        expected: issue.expected
-                    }
-                }));
-                return;
-            }
-            APIResponseInternalErr(req, res, "RAISE_SOS_ERR", e?.toString(), e?.toString() || "Unable to raise the SOS for the vehicle. please try again.");
+            const { vinno, servicetype, kilometer, parentgroup, locationcode, dealername, dealeraddress, slot } = req.body;
+            const result = await this.serviceModHdlrI.CreateVehicleServiceBookingLogic(
+                accountid,
+                userid,
+                vinno,
+                servicetype,
+                kilometer,
+                parentgroup,
+                locationcode,
+                dealername,
+                dealeraddress,
+                slot,
+                cookie
+            );
+            APIResponseOK(req, res, result, 'Vehicle service booking created successfully');
+        } catch (error) {
+            this.handleError(req, res, error);
         }
-    }
+    };
+
+    GetVehicleServiceStatus = async (req, res, next) => {
+        try {
+            const accountid = req.accountid;
+            const userid = req.userid;
+            const vinno = req.body.vinno;
+            const bookingid = req.body.bookingid;
+            const cookie = req.cookie;
+            const schema = z.object({
+                vinno: z
+                    .string({ message: 'Invalid VIN number parameter, must be a string' })
+                    .length(17, 'Invalid VIN number, must be 17 characters long')
+                    .regex(/^[A-Za-z0-9](?:[A-Za-z0-9 ]*[A-Za-z0-9])?$/, "VIN must contain only letters, numbers, and spaces, and must not start or end with a space"),
+                bookingid: z.uuid({ message: 'Invalid bookingid parameter must be a valid UUID' }),
+            });
+            this.validateAllInputs(schema, req.body);
+            const result = await this.serviceModHdlrI.GetVehicleServiceStatusLogic(accountid, userid, vinno, bookingid, cookie);
+            APIResponseOK(req, res, result.data, result.msg);
+        } catch (error) {
+            this.handleError(req, res, error);
+        }
+    };
+
+    ReschVehicleServiceBooking = async (req, res, next) => {
+        try {
+            const accountid = req.accountid;
+            const userid = req.userid;
+            const schema = z.object({
+                vinno: z
+                    .string({ message: 'Invalid vinno parameter, must be a string' })
+                    .length(17, { message: 'Invalid vinno, must be 17 characters long' })
+                    .regex(/^[A-Za-z0-9](?:[A-Za-z0-9 ]*[A-Za-z0-9])?$/, "VIN must contain only letters, numbers, and spaces, and must not start or end with a space"),
+                oldbookingid: z.uuid({ message: 'Invalid oldbookingid parameter, must be a valid UUID' }),
+                newservicetype: z.enum([this.ServiceType.ACCIDENTAL, this.ServiceType.REPAIR, this.ServiceType.SCHEDULED], { message: 'Invalid servicetype parameter, must be a string' }),
+                newkilometer: z.string({ message: 'Invalid kilometer parameter, must be a string' }).optional(),
+                newparentgroup: z
+                    .string({ message: 'Invalid parentgroup parameter, must be a string' })
+                    .max(50, { message: 'Invalid parentgroup, must be less than 50 characters' })
+                    .min(1, { message: 'Invalid parentgroup, must be greater than 0' }),
+                newlocationcode: z
+                    .string({ message: 'Invalid locationcode parameter, must be a string' })
+                    .max(50, { message: 'Invalid locationcode, must be less than 50 characters' })
+                    .min(1, { message: 'Invalid locationcode, must be greater than 0' }),
+                newdealername: z
+                    .string({ message: 'Invalid dealername parameter, must be a string' })
+                    .max(100, { message: 'Invalid dealername, must be less than 255 characters' })
+                    .min(1, { message: 'Invalid dealername, must be greater than 0' }),
+                newdealeraddress: z
+                    .string({ message: 'Invalid dealeraddress parameter, must be a string' })
+                    .max(255, { message: 'Invalid dealeraddress, must be less than 255 characters' })
+                    .min(1, { message: 'Invalid dealeraddress, must be greater than 0' }),
+                newslot: z
+                    .number({ message: 'Invalid slot parameter, must be a number' })
+                    .int({ message: 'Invalid slot parameter, must be integer' })
+                    .min(Date.now(), { message: 'Invalid slot parameter, must be greater than current date.' }),
+            });
+            this.validateAllInputs(schema, req.body);
+            const { vinno, oldbookingid, newservicetype, newkilometer, newparentgroup, newlocationcode, newdealername, newdealeraddress, newslot } = req.body;
+            const cookie = req.cookie;
+            const result = await this.serviceModHdlrI.ReschVehicleServiceBookingLogic(
+                accountid,
+                userid,
+                vinno,
+                oldbookingid,
+                newservicetype,
+                newkilometer,
+                newparentgroup,
+                newlocationcode,
+                newdealername,
+                newdealeraddress,
+                newslot,
+                cookie
+            );
+            APIResponseOK(req, res, result, 'Vehicle service booking rescheduled successfully');
+        } catch (error) {
+            this.handleError(req, res, error);
+        }
+    };
+
+    GetCancelReasons = async (req, res, next) => {
+        try {
+            const result = await this.serviceModHdlrI.GetCancelReasonsLogic();
+            APIResponseOK(req, res, result, 'Cancel reasons fetched successfully');
+        } catch (error) {
+            this.handleError(req, res, error);
+        }
+    };
+
+    CancelVehicleServiceBooking = async (req, res, next) => {
+        try {
+            const accountid = req.accountid;
+            const userid = req.userid;
+            const schema = z.object({
+                bookingid: z.uuid({ message: 'Invalid bookingid parameter, must be a valid UUID' }),
+                reason: z.string({ message: 'Invalid reason parameter, must be a string' }).regex(/^[a-zA-Z\s]+$/, { message: 'Invalid reason, must contain only letters' }),
+                vinno: z
+                    .string({ message: 'Invalid vinno parameter, must be a string' })
+                    .length(17, { message: 'Invalid vinno, must be 17 characters long' })
+                    .regex(/^[A-Za-z0-9](?:[A-Za-z0-9 ]*[A-Za-z0-9])?$/, "VIN must contain only letters, numbers, and spaces, and must not start or end with a space"),
+            });
+            this.validateAllInputs(schema, req.body);
+            const { bookingid, reason, vinno } = req.body;
+            const cookie = req.cookie;
+            const result = await this.serviceModHdlrI.CancelVehicleServiceBookingLogic(accountid, userid, bookingid, vinno, reason, cookie);
+            APIResponseOK(req, res, result, 'Vehicle service booking cancelled successfully');
+        } catch (error) {
+            this.handleError(req, res, error);
+        }
+    };
+
+    GetVehicleServiceHistory = async (req, res, next) => {
+        try {
+            const accountid = req.accountid;
+            const userid = req.userid;
+            const vinno = req.query.vinno;
+            const cookie = req.cookie;
+            const schema = z.object({
+                vinno: z
+                .string({ message: 'Invalid vinno parameter, must be a string' })
+                .length(17, 'Invalid VIN number must be 17 characters long')
+                .regex(/^[A-Za-z0-9](?:[A-Za-z0-9 ]*[A-Za-z0-9])?$/, "VIN must contain only letters, numbers, and spaces, and must not start or end with a space"),
+            });
+            this.validateAllInputs(schema, req.query);
+            const result = await this.serviceModHdlrI.GetVehicleServiceHistoryLogic(accountid, userid, vinno, cookie);
+            APIResponseOK(req, res, result, 'Vehicle service history fetched successfully');
+        } catch (error) {
+            this.handleError(req, res, error);
+        }
+    };
 
     GetVehicleInfo = async (req, res, next) => {
         try {
@@ -548,201 +441,38 @@ export default class ServiceModHdlr {
             const userid = req.userid;
             const vinno = req.query.vinno;
             const schema = z.object({
-                vinno: z.string({ message: "Invalid VIN number parameter, must be a string" }).length(17, "Invalid VIN number, must be 17 characters long")
-            })
-            schema.parse({ vinno });
+                vinno: z
+                .string({ message: 'Invalid VIN number parameter, must be a string' })
+                .length(17, 'Invalid VIN number, must be 17 characters long')
+                .regex(/^[A-Za-z0-9](?:[A-Za-z0-9 ]*[A-Za-z0-9])?$/, "VIN must contain only letters, numbers, and spaces, and must not start or end with a space"),
+            });
+            this.validateAllInputs(schema, req.query);
             const result = await this.serviceModHdlrI.GetVehicleInfoLogic(accountid, userid, vinno, cookie);
-            APIResponseOK(req, res, result, "Vehicle details fetched successfully");
-        } catch (e) {
-            if (e instanceof z.ZodError) {
-                APIResponseBadRequest(req, res, "INVALID_REQUEST_BODY", e.issues.map(issue => {
-                    return {
-                        field: issue.path[0],
-                        message: issue.message,
-                        expected: issue.expected
-                    }
-                }), "Invalid request body");
-                return;
-            }
-            APIResponseInternalErr(req, res, "GET_VEHICLE_DETAILS_ERR", e?.toString(), e?.toString() || "Unable to fetch the vehicle details. please try again.");
+            APIResponseOK(req, res, result, 'Vehicle details fetched successfully');
+        } catch (error) {
+            this.handleError(req, res, error);
         }
-    }
+    };
 
-    GetSheduleJobTypes = async (req, res, next) => {
+    GetInvoice = async (req, res, next) => {
         try {
-
-            const accountid = req.accountid;
-            const modelDesc = req.query.modelDesc || "TREO";
-            const schema = z.object({
-                modelDesc: z.string({ message: "Invalid modelDesc parameter, must be a string" }).optional()
-            });
-            schema.parse({ modelDesc });
-            const result = await this.serviceModHdlrI.GetSheduleJobTypesLogic(accountid, modelDesc);
-            APIResponseOK(req, res, result, "Shedule job types fetched successfully");
-        } catch (e) {
-            if (e instanceof z.ZodError) {
-                APIResponseBadRequest(req, res, "INVALID_REQUEST_PARAMS", e.issues.map(issue => {
-                    return {
-                        field: issue.path[0],
-                        message: issue.message,
-                        expected: issue.expected
-                    }
-                }));
-                return;
-            }
-            APIResponseInternalErr(req, res, "GET_SHEDULE_JOB_TYPES_ERR", e?.toString(), e?.toString() || "Unable to fetch the shedule job types. please try again.");
-        }
-    }
-
-    ReschVehicleServiceBooking = async (req, res, next) => {
-        try {
-
-            let accountid = req.accountid;
-            let userid = req.userid;
-            let vinno = req.body.vinno;
-            let oldBookingId = req.body.oldbookingid;
-            let newServiceType = req.body.newservicetype;
-            let newKilometer = req.body.newkilometer;
-            let modelDisplayName = req.body.modeldisplayname;
-            let newParentGroup = req.body.newparentgroup;
-            let newLocationCode = req.body.newlocationcode;
-            let newDealerName = req.body.newdealername;
-            let newDealerAddress = req.body.newdealeraddress;
-            let newSlot = req.body.newslot;
-            const schema = z.object({
-                vinno: z.string({ message: "Invalid vinno parameter, must be a string" }).length(17, "Invalid VIN number, must be 17 characters long"),
-                oldBookingId: z.uuid({ message: "Invalid oldBookingId parameter, must be a valid UUID" }),
-                newServiceType: z.string({ message: "Invalid newServiceType parameter, must be a string" }),
-                newKilometer: z.string({ message: "Invalid newKilometer parameter, must be a string" }).optional(),
-                modelDisplayName: z.string({ message: "Invalid modelDisplayName parameter, must be a string" }),
-                newParentGroup: z.string({ message: "Invalid newParentGroup parameter, must be a string" }),
-                newLocationCode: z.string({ message: "Invalid newLocationCode parameter, must be a string" }),
-                newDealerName: z.string({ message: "Invalid newDealerName parameter, must be a string" }),
-                newDealerAddress: z.string({ message: "Invalid newDealerAddress parameter, must be a string" }),
-                newSlot: z.number({ message: "Invalid newSlot parameter, must be a number" }).int({ message: "Invalid newSlot parameter, must be integer" }).min(Date.now(), "Invalid newSlot parameter, must be greater than current date.")
-            });
-            schema.parse({ vinno, oldBookingId, newServiceType, newKilometer, modelDisplayName, newParentGroup, newLocationCode, newDealerName, newDealerAddress, newSlot });
-            const cookie = req.cookie;
-            let result = await this.serviceModHdlrI.ReschVehicleServiceBookingLogic(accountid, userid, vinno, oldBookingId, newServiceType, newKilometer, modelDisplayName, newParentGroup, newLocationCode, newDealerName, newDealerAddress, newSlot, cookie);
-            APIResponseOK(req, res, result, "Vehicle service booking rescheduled successfully");
-        } catch (e) {
-            if (e instanceof z.ZodError) {
-                APIResponseBadRequest(req, res, "INVALID_REQUEST_BODY", e.issues.map(issue => {
-                    return {
-                        field: issue.path[0],
-                        message: issue.message,
-                        expected: issue.expected
-                    }
-                }));
-                return;
-            }
-            APIResponseInternalErr(req, res, "RESCH_VEHICLE_SERVICE_BOOKING_ERR", e?.toString(), e?.toString() || "Unable to reschedule the vehicle service booking. please try again.");
-        }
-    }
-
-    // Helper method to get request ID for external use
-    GetRequestId() {
-        return this.serviceModHdlrI.getRequestId();
-    }
-
-    GetKilometers = async (req, res, next) => {
-        try {
-
             const accountid = req.accountid;
             const userid = req.userid;
             const vinno = req.body.vinno;
+            const bookingid = req.body.bookingid;
+            const cookie = req.cookie;
             const schema = z.object({
-                vinno: z.string({ message: "Invalid vinno parameter, must be a string" }).length(17, "Invalid VIN number, must be 17 characters long")
+                vinno: z
+                .string({ message: 'Invaild vin number, must be a string type' })
+                .length(17, 'Invalid VIN number must be 17 characters long')
+                .regex(/^[A-Za-z0-9](?:[A-Za-z0-9 ]*[A-Za-z0-9])?$/, "VIN must contain only letters, numbers, and spaces, and must not start or end with a space"),
+                bookingid: z.uuid({ message: 'Invalid bookingid parameter must be a valid UUID' }),
             });
-            schema.parse({ vinno });
-            const result = await this.serviceModHdlrI.GetKilometersLogic(accountid, userid, vinno);
-            APIResponseOK(req, res, result, "Kilometers fetched successfully");
-        } catch (e) {
-            if (e instanceof z.ZodError) {
-                APIResponseBadRequest(req, res, "INVALID_REQUEST_BODY", e.issues.map(issue => {
-                    return {
-                        field: issue.path[0],
-                        message: issue.message,
-                        expected: issue.expected
-                    }
-                }));
-                return;
-            }
-            APIResponseInternalErr(req, res, "GET_KILOMETERS_ERR", e?.toString(), e?.toString() || "Unable to fetch the kilometers list. please try again.");
-        }
-    }
-
-    ListNearestDealersSearch = async (req, res, next) => {
-        try {
-
-            const accountid = req.accountid;
-            const userid = req.userid;
-            const body = req.body;
-            const { modelgroupdesc, searchfilter, dealertype, latitude, longitude } = req.body;
-            const schema = z.object({
-                modelgroupdesc: z.string({ message: "Invalid modelgroupdesc parameter, must be a string" }).optional(),
-                searchfilter: z.string({ message: "Invalid searchfilter parameter, must be a string" }).optional(),
-                dealertype: z.string({ message: "Invalid dealertype parameter, must be a string" }).optional(),
-                latitude: z.number({ message: "Invalid latitude parameter, must be a number" }),
-                longitude: z.number({ message: "Invalid longitude parameter, must be a number" })
-            });
-            schema.parse({ modelgroupdesc, searchfilter, dealertype, latitude, longitude });
-
-            const result = await this.serviceModHdlrI.ListNearestDealersSearchLogic(accountid, userid, body);
-            APIResponseOK(req, res, result, "Nearest dealers fetched successfully");
-        } catch (e) {
-            if (e instanceof z.ZodError) {
-                APIResponseBadRequest(req, res, "INVALID_REQUEST_BODY", e.issues.map(issue => {
-                    return {
-                        field: issue.path[0],
-                        message: issue.message,
-                        expected: issue.expected
-                    }
-                }));
-                return;
-            }
-            APIResponseInternalErr(req, res, "LIST_NEAREST_DEALERS_SEARCH_ERR", e?.toString(), e?.toString() || "Unable to fetch the nearest dealers list. please try again.");
-        }
-    }
-    
-    setToken = async (req, res, next) => {
-        try {
-            let token = req.body.token;
-            const schema = z.object({
-                token: z.string({ message: "token is required" })
-                .nonempty({ message: "token cannot be empty" })
-            });
-            schema.parse({ token });
-            const cookieOptions = {
-                httpOnly: false, 
-                secure: false,
-                sameSite: 'lax',
-                maxAge: 24 * 60 * 60 * 1000 
-            };
-            res.cookie('token', token, cookieOptions);
-            APIResponseOK(req, res, { 
-                message: "Token set successfully in cookie",
-                cookieSet: true,
-                swaggerReady: true
-            }, "Token set in cookie successful");
+            this.validateAllInputs(schema, req.body);
+            const result = await this.serviceModHdlrI.GetInvoiceLogic(accountid, userid, vinno, bookingid, cookie);
+            APIResponseOK(req, res, result, 'Invoice fetched successfully');
         } catch (error) {
-            if (error.errcode === "INPUT_ERROR") {
-                APIResponseBadRequest(
-                    req,
-                    res,
-                    error.errcode,
-                    error.errdata,
-                    error.message
-                );
-            } else {
-                APIResponseInternalErr(
-                    req,
-                    res,
-                    "SET_TOKEN_ERR",
-                    error.toString(),
-                    "Set token failed"
-                );
-            }
+            this.handleError(req, res, error);
         }
     };
 
@@ -751,24 +481,192 @@ export default class ServiceModHdlr {
             const accountid = req.accountid;
             const userid = req.userid;
             const vinno = req.query.vinno;
+            const cookie = req.cookie;
             const schema = z.object({
-                vinno: z.string({ message: "Invalid vinno parameter, must be a string" }).length(17, "Invalid VIN number, must be 17 characters long")
+                vinno: z
+                .string({ message: 'Invalid vinno parameter, must be a string' })
+                .length(17, 'Invalid VIN number, must be 17 characters long')
+                .regex(/^[A-Za-z0-9](?:[A-Za-z0-9 ]*[A-Za-z0-9])?$/, "VIN must contain only letters, numbers, and spaces, and must not start or end with a space"),
             });
-            schema.parse({ vinno });
-            const result = await this.serviceModHdlrI.GetExternalVehicleInfoLogic(accountid, userid, vinno);
-            APIResponseOK(req, res, result, "External vehicle info fetched successfully");
-        } catch (e) {
-            if (e instanceof z.ZodError) {
-                APIResponseBadRequest(req, res, "INVALID_REQUEST_BODY", e.issues.map(issue => {
-                    return {
-                        field: issue.path[0],
-                        message: issue.message,
-                        expected: issue.expected
-                    }
-                }));
-                return;
-            }
-            APIResponseInternalErr(req, res, "GET_EXTERNAL_VEHICLE_INFO_ERR", e?.toString(), e?.toString() || "Unable to fetch the vehicle info. please try again.");
+            this.validateAllInputs(schema, req.query);
+            const result = await this.serviceModHdlrI.GetExternalVehicleInfoLogic(accountid, userid, vinno, cookie);
+            APIResponseOK(req, res, result, 'External vehicle info fetched successfully');
+        } catch (error) {
+            this.handleError(req, res, error);
         }
-    }
+    };
+
+    ListDealerSearch = async (req, res, next) => {
+        try {
+            const userid = req.userid;
+            const accountid = req.accountid;
+            const { vinno } = req.body;
+            const schema = z.object({
+                vinno: z
+                .string({ message: 'Invalid vinno parameter, must be a string' })
+                .length(17, 'Invalid VIN number, must be 17 characters long')
+                .regex(/^[A-Za-z0-9](?:[A-Za-z0-9 ]*[A-Za-z0-9])?$/, "VIN must contain only letters, numbers, and spaces, and must not start or end with a space"),
+            });
+            this.validateAllInputs(schema, req.body);
+            const result = await this.serviceModHdlrI.ListDealerSearchLogic(accountid, userid, vinno, 'TREO', 0, 30, ' ');
+            APIResponseOK(req, res, result, 'Dealer search fetched successfully');
+        } catch (error) {
+            this.handleError(req, res, error);
+        }
+    };
+
+    ListNearestDealersSearch = async (req, res, next) => {
+        try {
+            const accountid = req.accountid;
+            const userid = req.userid;
+            const latitude = req.body.latitude;
+            const longitude = req.body.longitude;
+            const schema = z.object({
+                latitude: z
+                    .number({ message: 'Invalid latitude parameter, must be a number' })
+                    .refine((lat) => lat >= -90 && lat <= 90 && lat !== 0, { message: 'Invalid latitude: must be between -90 and 90 degrees and cannot be 0' }),
+                longitude: z
+                    .number({ message: 'Invalid longitude parameter, must be a number' })
+                    .refine((lng) => lng >= -180 && lng <= 180 && lng !== 0, { message: 'Invalid longitude: must be between -180 and 180 degrees and cannot be 0' }),
+            });
+            this.validateAllInputs(schema, req.body);
+            const result = await this.serviceModHdlrI.ListNearestDealersSearchLogic(accountid, userid, latitude, longitude);
+            APIResponseOK(req, res, result, 'Nearest dealers fetched successfully');
+        } catch (error) {
+            this.handleError(req, res, error);
+        }
+    };
+
+    GetSoSDetails = async (req, res, next) => {
+        try {
+            const userid = req.userid;
+            const accountid = req.accountid;
+            const vinno = req.body.vinno;
+            const cookie = req.cookie;
+            const schema = z.object({
+                vinno: z
+                .string({ message: 'Invalid vinno parameter, must be a string' })
+                .length(17, 'Invalid VIN number, must be 17 characters long')
+                .regex(/^[A-Za-z0-9](?:[A-Za-z0-9 ]*[A-Za-z0-9])?$/, "VIN must contain only letters, numbers, and spaces, and must not start or end with a space"),
+            });
+            this.validateAllInputs(schema, req.body);
+            const result = await this.serviceModHdlrI.GetSoSDetailsLogic(accountid, userid, vinno, cookie);
+            APIResponseOK(req, res, result, 'SOS reasons fetched successfully');
+        } catch (error) {
+            this.handleError(req, res, error);
+        }
+    };
+
+    RaiseSOS = async (req, res, next) => {
+        try {
+            const accountid = req.accountid;
+            const userid = req.userid;
+            const sosinfo = req.body;
+            const cookie = req.cookie;
+            const schema = z.object({
+                vinno: z
+                .string({ message: 'Invalid vinno parameter, must be a string' })
+                .length(17, 'Invalid VIN number, must be 17 characters long')
+                .regex(/^[A-Za-z0-9](?:[A-Za-z0-9 ]*[A-Za-z0-9])?$/, "VIN must contain only letters, numbers, and spaces, and must not start or end with a space"),
+                issue: z
+                    .array(z.string({ message: 'Invalid issue parameter, must be a string' }))
+                    .max(1, { message: 'Invalid issue, must be an array of at most 1 string' })
+                    .min(1, 'Issue must be an array of at least 1 string'),
+                latitude: z
+                    .number({ message: 'Invalid latitude parameter, must be a number' })
+                    .refine((lat) => lat >= -90 && lat <= 90 && lat !== 0, { message: 'Invalid latitude: must be between -90 and 90 degrees and cannot be 0' }),
+                longitude: z
+                    .number({ message: 'Invalid longitude parameter, must be a number' })
+                    .refine((lng) => lng >= -180 && lng <= 180 && lng !== 0, { message: 'Invalid longitude: must be between -180 and 180 degrees and cannot be 0' }),
+            });
+            this.validateAllInputs(schema, sosinfo);
+            const result = await this.serviceModHdlrI.RaiseSOSLogic(accountid, userid, sosinfo, cookie);
+            APIResponseOK(req, res, result, 'SOS raised successfully');
+        } catch (error) {
+            this.handleError(req, res, error);
+        }
+    };
+
+    GetKilometers = async (req, res, next) => {
+        try {
+            const accountid = req.accountid;
+            const userid = req.userid;
+            const cookie = req.cookie;
+            const schema = z.object({
+                vinno: z
+                .string({ message: 'Invalid vinno parameter, must be a string' })
+                .length(17, 'Invalid VIN number, must be 17 characters long')
+                .regex(/^[A-Za-z0-9](?:[A-Za-z0-9 ]*[A-Za-z0-9])?$/, "VIN must contain only letters, numbers, and spaces, and must not start or end with a space"),
+            });
+            this.validateAllInputs(schema, req.body);
+            const vinno = req.body.vinno;
+            const result = await this.serviceModHdlrI.GetKilometersLogic(accountid, userid, vinno, cookie);
+            APIResponseOK(req, res, result, 'Kilometers fetched successfully');
+        } catch (error) {
+            this.handleError(req, res, error);
+        }
+    };
+
+    //middlewares
+    validateAllInputs = (schema, data) => {
+        try {
+            return schema.parse(data);
+        } catch (error) {
+            if (error.issues && Array.isArray(error.issues)) {
+                const allErrors = error.issues.map((err) => {
+                    let field = 'root';
+                    if (err.path.length > 0) {
+                        const lastKey = err.path
+                            .slice()
+                            .reverse()
+                            .find((p) => typeof p === 'string');
+                        field = lastKey || err.path.join('.');
+                    }
+
+                    return {
+                        field: field,
+                        errorCode: err.code,
+                        message: err.message,
+                    };
+                });
+
+                let message;
+                if (allErrors.length === 1) {
+                    message = allErrors[0].message;
+                } else if (allErrors.length <= 3) {
+                    const errorMessages = allErrors.map((err) => err.message);
+                    message = errorMessages.join(', ');
+                } else {
+                    message = `Please fix ${allErrors.length} validation errors and try again.`;
+                }
+
+                throw {
+                    errcode: 'INPUT_ERROR',
+                    errmsg: message,
+                };
+            }
+            throw {
+                errcode: 'ZOD_UTILIZATION_ERROR',
+                errmsg: error.toString(),
+            };
+        }
+    };
+
+    handleError = (req, res, error) => {
+        if (error.errcode === 'INPUT_ERROR' || error.errcode === 'ZOD_UTILIZATION_ERROR') {
+            return APIResponseBadRequest(req, res, error.errcode, null, error.errmsg);
+        }
+        const { code, message, ResponseFn } = userFriendlyError(error.errcode);
+        if (error.errmsg === 'User info not found') {
+            return ResponseFn(req, res, code, null, 'We are facing issue with the following vehicle. Please try again after sometime.');
+        }
+        return ResponseFn(req, res, code, null, error.errmsg || message);
+    };
+
+    //extra
+    ServiceType = {
+        REPAIR: 'repair_lmm_cv',
+        ACCIDENTAL: 'accidental_lmm_cv',
+        SCHEDULED: 'scheduled_lmm_cv',
+    };
 }

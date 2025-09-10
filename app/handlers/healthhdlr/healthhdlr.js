@@ -1,9 +1,4 @@
-import {
-  APIResponseBadRequest,
-  APIResponseError,
-  APIResponseInternalErr,
-  APIResponseOK,
-} from "../../utils/responseutil.js";
+import { APIResponseInternalErr, APIResponseOK } from "../../utils/responseutil.js";
 
 export default class HealthHdlr {
   constructor(healthSvcI) {
@@ -13,7 +8,7 @@ export default class HealthHdlr {
   GetHealthStatus = async (req, res, next) => {
     try {
       console.log("Called GetHealthStatus");
-      let healthStatus = this.healthSvcI.GetHealthStatus();
+      const healthStatus = this.healthSvcI.GetHealthStatus();
       console.log("healthStatus", healthStatus);
       APIResponseOK(req, res, healthStatus, "Health Status Ready!");
     } catch (e) {

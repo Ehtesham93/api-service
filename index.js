@@ -1,8 +1,3 @@
-import fs from "fs";
-import winston from "winston";
-import path from "path";
-import DailyRotateFile from "winston-daily-rotate-file";
-
 import config from "./app/config/config.js";
 import PgPool from "./app/utils/pgpool.js";
 
@@ -12,47 +7,72 @@ import { swaggerDocs } from "./docs/swagger.js";
 import HealthSvc from "./app/services/healthsvc/healthsvc.js";
 import HealthHdlr from "./app/handlers/healthhdlr/healthhdlr.js";
 
+import Wrapper from "./app/utils/wrappers.js";
+
 import ServiceModSvc from "./app/services/servicemodsvc/servicemodsvc.js";
 import ServiceModHdlr from "./app/handlers/servicemodhdlr/servicemodhdlr.js";
-import RedisSvc from "./app/utils/redisutil.js";
+
 import { initializeServiceModDB, startPolling } from "./app/utils/authexternalutils.js";
+
+import { Logger } from "./lib/nemo3-lib-observability/index.js";
+
+const logger = new Logger({
+  environment: process.env.APP_ENV || "LOCAL",
+  service: "nemo3-api-service-svc",
+  instance: process.env.INSTANCE || "localhost",
+  ip: process.env.IP || "127.0.0.1",
+  loglevel: "info",
+  logToConsole: config.logToConsole || false,
+  maxSizeBytes: 10 * 1024 * 1024, // 10MB
+  maxBackups: 5,
+  checkIntervalMs: 2 * 1000,
+  autoInstrument: true,
+  flushInterval: 5000,
+});
 
 
 // 0. Config Related...
-let apiserverport = config.apiserver.port;
+const apiserverport = config.apiserver.port;
 
 // 1. Services...
-let servicelogger = console;
-let pgPoolI = new PgPool(config.pgdb, servicelogger);
-let redisSvcI = new RedisSvc(config.redis, servicelogger);
+const servicelogger = logger;
+const pgPoolI = new PgPool(config.pgdb, servicelogger);
+const wrapperI = new Wrapper(pgPoolI, config, servicelogger);
 
-let serviceModSvcI = new ServiceModSvc(pgPoolI, redisSvcI, servicelogger, config);
-let healthSvcI = new HealthSvc();
+const serviceModSvcI = new ServiceModSvc(pgPoolI, servicelogger, config);
+const healthSvcI = new HealthSvc();
 
 // 2. Handlers...
-let handlerloggerI = console;
-let serviceModHdlrI = new ServiceModHdlr(serviceModSvcI, servicelogger);
-let healthHdlrI = new HealthHdlr(healthSvcI);
+const handlerloggerI = console;
+const serviceModHdlrI = new ServiceModHdlr(serviceModSvcI, wrapperI, servicelogger, config);
+const healthHdlrI = new HealthHdlr(healthSvcI);
 
-let pathPrefix = config.pathPrefix;
+const pathPrefix = config.pathPrefix;
 
 // 3. Handler Map...
-let apiRoutes = [ // TODO rename first fms to web
+const apiRoutes = [ // TODO rename first fms to web
   [ pathPrefix + "/api/v1/fms/service/", serviceModHdlrI],
   [ pathPrefix + "/api/v1/fms/service/health/", healthHdlrI]
 ];
 
 // 4. API Server...
-let apiserverlogger = console;
+const apiserverlogger = console;
 
-let App = new APIServer(apiRoutes, config, apiserverlogger);
+const App = new APIServer(apiRoutes, config, apiserverlogger);
+
+if(!config.logToConsole){
+  App.app.use(logger.getMetrics().middleware());
+  logger.start();
+}
 
 // 5. Initialize Swagger documentation
 swaggerDocs(App.app);
 
 initializeServiceModDB(serviceModSvcI, config);
 
-startPolling();
+if (config.enableServiceOnboarding) {
+  startPolling();
+}
 
 App.Start(apiserverport);
 

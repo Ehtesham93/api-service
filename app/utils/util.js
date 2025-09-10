@@ -1,29 +1,201 @@
-const specificErrorPatterns = {
-    databaseError:
-        /^(duplicate key|violates|syntax error|null value|invalid input|relation .* does not exist|column .* does not exist)/i,
-    requestError400: /^(4\d{2}.*?Bad Request|400|Request.*400|Bad Request)/i,
-    requestError401:
-        /^(Unauthorized|Invalid token|Request.*401|401|Authentication failed|Token expired|Invalid credentials)/i,
-    requestError403:
-        /^(Forbidden|Permission denied|403|Request.*403|Access denied|Insufficient permissions)/i,
-    requestError404:
-        /^(Not Found|404|Request.*404|Resource not found|Endpoint not found)/i,
-    requestError408:
-        /^(Timeout|Request Timeout|408|Request.*408|Connection timeout|Operation timeout)/i,
-    requestError429:
-        /^(Too Many Requests|429|Request.*429|Rate limit exceeded|Throttling)/i,
-    requestError500:
-        /^(Internal Server Error|Request.*500|500|Server error|Application error)/i,
-    requestError502:
-        /^(Bad Gateway|502|Request.*502|Gateway error|Proxy error)/i,
-    requestError503:
-        /^(Service Unavailable|503|Request.*503|Service denied|Maintenance mode|Temporarily unavailable|Server overloaded|Backend service unavailable)/i,
-    requestError504:
-        /^(Gateway Timeout|504|Request.*504|Upstream timeout|Proxy timeout)/i,
-    networkError:
-        /^(ECONNREFUSED|ENOTFOUND|ETIMEDOUT|ECONNRESET|EAI_AGAIN|ENETUNREACH|EHOSTUNREACH|ECONNABORTED)/i,
-    axiosError:
-        /^(Request failed with status code|Network Error|timeout of|Request timeout|ERR_NETWORK)/i,
+import { APIResponseBadRequest, APIResponseForbidden, APIResponseInternalErr, APIResponseNotFound } from '../utils/responseutil.js';
+
+const userFriendlyErrorMessages = {
+    USER_FLEET_NOT_FOUND: {
+        code: 'USER_FLEET_NOT_FOUND',
+        message: 'User fleet not found',
+        ResponseFn: APIResponseForbidden,
+    },
+    VEHICLE_FLEET_NOT_FOUND: {
+        code: 'VEHICLE_FLEET_NOT_FOUND',
+        message: 'Vehicle fleet not found',
+        ResponseFn: APIResponseForbidden,
+    },
+    USER_FLEET_ACCESS_DENIED: {
+        code: 'USER_FLEET_ACCESS_DENIED',
+        message: 'You are not authorized to access this fleet',
+        ResponseFn: APIResponseForbidden,
+    },
+    NO_SERVICE_TYPES_FOUND: {
+        code: 'NO_SERVICE_TYPES_FOUND',
+        message: 'No service types found',
+        ResponseFn: APIResponseBadRequest,
+    },
+    INVALID_VIN_NUMBER: {
+        code: 'INVALID_VIN_NUMBER',
+        message: 'Please send the valid registration number',
+        ResponseFn: APIResponseBadRequest,
+    },
+    MOBILE_NUMBER_NOT_FOUND: {
+        code: 'MOBILE_NUMBER_NOT_FOUND',
+        message: 'Mobile number not found for the vehicle',
+        ResponseFn: APIResponseBadRequest,
+    },
+    NO_CANCEL_REASONS_FOUND: {
+        code: 'NO_CANCEL_REASONS_FOUND',
+        message: 'No cancel reasons found',
+        ResponseFn: APIResponseBadRequest,
+    },
+    NO_SLOTS_FOUND: {
+        code: 'NO_SLOTS_FOUND',
+        message: 'No slots found for the dealer',
+        ResponseFn: APIResponseBadRequest,
+    },
+    VEHICLE_NOT_FOUND: {
+        code: 'VEHICLE_NOT_FOUND',
+        message: 'The vehicle does not exist in the system',
+        ResponseFn: APIResponseBadRequest,
+    },
+    USER_NOT_FOUND: {
+        code: 'USER_NOT_FOUND',
+        message: 'User not found',
+        ResponseFn: APIResponseForbidden,
+    },
+    SOS_REQUEST_FAILED: {
+        code: 'SOS_REQUEST_FAILED',
+        message: 'Unable to send the SOS request for all the issues.',
+        ResponseFn: APIResponseInternalErr,
+    },
+    SERVICE_HISTORY_NOT_FOUND: {
+        code: 'SERVICE_HISTORY_NOT_FOUND',
+        message: 'Service history not found for the service',
+        ResponseFn: APIResponseNotFound,
+    },
+    NO_ACTIVE_BOOKING: {
+        code: 'NO_ACTIVE_BOOKING',
+        message: 'No active booking found for the vehicle, unable to get the service status.',
+        ResponseFn: APIResponseNotFound,
+    },
+    VEHICLE_ALREADY_BOOKED: {
+        code: 'VEHICLE_ALREADY_BOOKED',
+        message: 'Vehicle already booked for a service. Please cancel the existing booking and try again.',
+        ResponseFn: APIResponseBadRequest
+    },
+    INVALID_SLOT: {
+        code: 'INVALID_SLOT',
+        message: 'Invalid slot. Please select a valid slot.',
+        ResponseFn: APIResponseBadRequest
+    },
+    BOOKING_FAILED: {
+        code: 'BOOKING_FAILED',
+        message: 'Unable to book the service. Please try again after sometime.',
+        ResponseFn: APIResponseInternalErr
+    },
+    CANNOT_BE_RESCHEDULED: {
+        code: 'CANNOT_BE_RESCHEDULED',
+        message: 'The service cannot be rescheduled as it is already in service.',
+        ResponseFn: APIResponseBadRequest
+    },
+    RESCHEDULE_FAILED: {
+        code: 'RESCHEDULE_FAILED',
+        message: 'Unable to reschedule the service. Please try again after sometime.',
+        ResponseFn: APIResponseInternalErr
+    },
+    CANNOT_BE_CANCELLED: {
+        code: 'CANNOT_BE_CANCELLED',
+        message: 'The service cannot be cancelled as it is already in service.',
+        ResponseFn: APIResponseBadRequest
+    },
+    BOOKING_NOT_FOUND: {
+        code: 'BOOKING_NOT_FOUND',
+        message: 'No active booking found for the vehicle.',
+        ResponseFn: APIResponseNotFound
+    },
+    CANCEL_BOOKING_FAILED: {
+        code: 'CANCEL_BOOKING_FAILED',
+        message: 'Unable to cancel the service. Please try again after sometime.',
+        ResponseFn: APIResponseInternalErr
+    },
+    ALREADY_CANCELLED: {
+        code: 'ALREADY_CANCELLED',
+        message: 'The service is already cancelled. Please refresh the page.',
+        ResponseFn: APIResponseBadRequest
+    },
+    NO_DEALER_FOUND: {
+        code: 'NO_DEALER_FOUND',
+        message: 'No dealer is found for the model, please choose another vehicle',
+        ResponseFn: APIResponseNotFound
+    },
+    USER_OVERVIEW_ACCESS_DENIED: {
+        code: 'USER_OVERVIEW_ACCESS_DENIED',
+        message: "You do not have permission to access the overview or list of vehicles",
+        ResponseFn: APIResponseForbidden
+    },
+    USER_DEALER_ACCESS_DENIED: {
+        code: 'USER_DEALER_ACCESS_DENIED',
+        message: "You do not have permission to access the dealer list",
+        ResponseFn: APIResponseForbidden
+    },
+    USER_BOOKING_ACCESS_DENIED: {
+        code: 'USER_BOOKING_ACCESS_DENIED',
+        message: "You do not have permission to book a service",
+        ResponseFn: APIResponseForbidden
+    },
+    USER_STATUS_ACCESS_DENIED: {
+        code: 'USER_STATUS_ACCESS_DENIED',
+        message: "You do not have permission to check the service status",
+        ResponseFn: APIResponseForbidden
+    },
+    USER_RESCHEDULE_ACCESS_DENIED: {
+        code: 'USER_RESCHEDULE_ACCESS_DENIED',
+        message: "You do not have permission to reschedule a service",
+        ResponseFn: APIResponseForbidden
+    },
+    USER_CANCEL_ACCESS_DENIED: {
+        code: 'USER_CANCEL_ACCESS_DENIED',
+        message: "You do not have permission to cancel a service",
+        ResponseFn: APIResponseForbidden
+    },
+    USER_HISTORY_ACCESS_DENIED: {
+        code: 'USER_HISTORY_ACCESS_DENIED',
+        message: "You do not have permission to access the service history",
+        ResponseFn: APIResponseForbidden
+    },
+    VEHICLE_INFO_ACCESS_DENIED: {
+        code: 'VEHICLE_INFO_ACCESS_DENIED',
+        message: "You do not have permission to access the vehicle information",
+        ResponseFn: APIResponseForbidden
+    },
+    USER_INVOICE_ACCESS_DENIED: {
+        code: 'USER_INVOICE_ACCESS_DENIED',
+        message: "You do not have permission to access the invoice",
+        ResponseFn: APIResponseForbidden
+    },
+    SOS_ACCESS_DENIED: {
+        code: 'SOS_ACCESS_DENIED',
+        message: "You do not have permission to access the SOS",
+        ResponseFn: APIResponseForbidden
+    },
+    SOS_REASONS_NOT_FOUND: {
+        code: 'SOS_REASONS_NOT_FOUND',
+        message: "No Such SOS reason found",
+        ResponseFn: APIResponseBadRequest
+    },
+    PERMISSION_DENIED: {
+        code: 'PERMISSION_DENIED',
+        message: "You do not have permission to access service module.",
+        ResponseFn: APIResponseForbidden
+    },
+    MODULE_NOT_FOUND: {
+        code: 'MODULE_NOT_FOUND',
+        message: "Service module not found",
+        ResponseFn: APIResponseForbidden
+    },
+    BOOK_DETAILS_SAME: {
+        code: 'BOOK_DETAILS_SAME',
+        message: 'The service details are same as the existing booking. Please choose a different service type or dealer or booking time.',
+        ResponseFn: APIResponseBadRequest
+    },
+    RESCHEDULE_STATUS_ERROR: {
+        code: 'RESCHEDULE_STATUS_ERROR',
+        message: 'Unable to get the service status. Failed to reschedule the service.',
+        ResponseFn: APIResponseInternalErr
+    },
+    CANCEL_STATUS_ERROR: {
+        code: 'CANCEL_STATUS_ERROR',
+        message: 'Unable to get the service status. Failed to cancel the service.',
+        ResponseFn: APIResponseInternalErr
+    }
 };
 
 export function getChassisNumber(vinno) {
@@ -32,10 +204,10 @@ export function getChassisNumber(vinno) {
 
 export function dateFormatter(date) {
     if (!isNaN(date)) {
-        const day = date.getDate().toString().padStart(2, "0");
-        const month = date.toLocaleDateString("en-GB", {
-            timeZone: "Asia/Kolkata",
-            month: "short",
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = date.toLocaleDateString('en-GB', {
+            timeZone: 'Asia/Kolkata',
+            month: 'short',
         });
         const year = date.getFullYear();
         return `${day} ${month} ${year}`;
@@ -43,74 +215,58 @@ export function dateFormatter(date) {
     return null;
 }
 
-export function handleErrorMessage(error) {
-    if (
-        error.response?.data?.message ===
-        "Cancel appointment failure :Appointment Already cancelled"
-    ) {
-        return "Cancel appointment failure :Appointment Already cancelled";
-    } else if (error.response?.data?.message === "User info not found") {
-        return "Please try again with different vehicle.";
-    } else if (error?.message === "Mahindra access token is missing") {
-        return "Unable to process the request, please try again.";
+export function convertEpochToIST(epochMillis, dateandtime = true) {
+    const formatter = new Intl.DateTimeFormat('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hourCycle: 'h23', // 24-hour format
+    });
+
+    // Format parts separately
+    const parts = formatter.formatToParts(new Date(epochMillis));
+    const map = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+
+    if (dateandtime) {
+        return `${map.day} ${map.month} ${map.year} | ${map.hour}:${map.minute}:${map.second}`;
+    } else {
+        return `${map.day} ${map.month} ${map.year}`;
     }
-    return null;
 }
 
-export function checkForDbOrRequestError(error) {
-    let message = error?.message || error?.toString() || "";
+export function convertToADCFormat(epochMillis) {
+    const formatter = new Intl.DateTimeFormat('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hourCycle: 'h23', // 24-hour format
+    });
 
-    if (specificErrorPatterns.networkError.test(message)) {
-        return "Network connection error, please check your internet connection and try again.";
-    }
-    if (specificErrorPatterns.axiosError.test(message)) {
-        if (message.includes("503")) {
-            return "Service temporarily unavailable, please try again later.";
-        } else if (message.includes("timeout")) {
-            return "Request timeout, please try again.";
-        } else {
-            return "Network error, please check your connection and try again.";
-        }
-    }
+    // Format parts separately
+    const parts = formatter.formatToParts(new Date(epochMillis));
+    const map = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
 
-    if (specificErrorPatterns.databaseError.test(message)) {
-        return "Something went wrong while processing the data. Please try again later.";
-    }
-
-    if (specificErrorPatterns.requestError400.test(message)) {
-        return "Bad request, please check your request and try again.";
-    } else if (specificErrorPatterns.requestError401.test(message)) {
-        return "Unauthorized, please check your credentials and try again.";
-    } else if (specificErrorPatterns.requestError403.test(message)) {
-        return "Forbidden, please check your permissions and try again.";
-    } else if (specificErrorPatterns.requestError404.test(message)) {
-        return "Service not found, please try again later.";
-    } else if (specificErrorPatterns.requestError408.test(message)) {
-        return "Request timeout, please try again.";
-    } else if (specificErrorPatterns.requestError429.test(message)) {
-        return "Too many requests, please wait and try again.";
-    } else if (specificErrorPatterns.requestError500.test(message)) {
-        return "Internal server error, please try again later.";
-    } else if (specificErrorPatterns.requestError502.test(message)) {
-        return "Bad gateway, please try again later.";
-    } else if (specificErrorPatterns.requestError503.test(message)) {
-        return "Service temporarily unavailable, please try again later.";
-    } else if (specificErrorPatterns.requestError504.test(message)) {
-        return "Gateway timeout, please try again later.";
-    }
-
-    return null;
+    return `${map.month}/${map.day}/${map.year} ${map.hour}:${map.minute}:${map.second}`;
 }
 
-// TODO: Updates in this function based on the time zone, look into convertADCFormat function / dealer slots api
 export function calculateAge(startEpoch, endEpoch) {
-    if (startEpoch < 1e12) startEpoch *= 1000;
-    if (endEpoch < 1e12) endEpoch *= 1000;
+    if (startEpoch < 1e12) { startEpoch *= 1000; }
+    if (endEpoch < 1e12) { endEpoch *= 1000; }
 
     let start = new Date(startEpoch);
     let end = new Date(endEpoch);
 
-    if (start > end) [start, end] = [end, start];
+    if (start > end) {
+        return null;
+    }
 
     let years = end.getFullYear() - start.getFullYear();
     let months = end.getMonth() - start.getMonth();
@@ -128,268 +284,132 @@ export function calculateAge(startEpoch, endEpoch) {
     }
 
     const parts = [];
-    if (years > 0) parts.push(`${years} year${years > 1 ? "s" : ""}`);
-    if (months > 0) parts.push(`${months} month${months > 1 ? "s" : ""}`);
-    if (days > 0 || parts.length === 0)
-        parts.push(`${days} day${days !== 1 ? "s" : ""}`);
+    if (years > 0) { parts.push(`${years} year${years > 1 ? 's' : ''}`); }
+    if (months > 0) { parts.push(`${months} month${months > 1 ? 's' : ''}`); }
+    if (days > 0 || parts.length === 0) { parts.push(`${days} day${days !== 1 ? 's' : ''}`); }
 
-    return parts.join(", ");
+    return parts.join(', ');
 }
 
-export function convertToADCFormat(epochMillis) {
-    // Add 5 hours 30 minutes (in ms) to epochMillis
-    let istOffset = (5 * 60 * 60 * 1000) + (30 * 60 * 1000);
-    let istEpoch = epochMillis + istOffset;
-
-    // Calculate date parts manually
-    let ms = istEpoch;
-    let sec = Math.floor(ms / 1000);
-    let s = sec % 60;
-    let min = Math.floor(sec / 60);
-    let m = min % 60;
-    let hr = Math.floor(min / 60);
-    let h = hr % 24;
-
-    // Days since epoch
-    let days = Math.floor(hr / 24);
-
-    // Calculate year, month, day
-    // Epoch starts at 1970-01-01
-    let y = 1970;
-    let monthDays = [31,28,31,30,31,30,31,31,30,31,30,31];
-
-    // Helper to check leap year
-    function isLeap(year) {
-        return (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0));
-    }
-
-    // Find year
-    while (true) {
-        let daysInYear = isLeap(y) ? 366 : 365;
-        if (days >= daysInYear) {
-            days -= daysInYear;
-            y++;
-        } else {
-            break;
-        }
-    }
-
-    // Find month
-    let mo = 0;
-    while (true) {
-        let dim = monthDays[mo];
-        if (mo === 1 && isLeap(y)) dim = 29;
-        if (days >= dim) {
-            days -= dim;
-            mo++;
-        } else {
-            break;
-        }
-    }
-    let d = days + 1; // day of month
-
-    // Format mm/dd/yyyy hh:mm:ss
-    let mm = (mo + 1).toString().padStart(2, '0');
-    let dd = d.toString().padStart(2, '0');
-    let yyyy = y.toString();
-    let HH = h.toString().padStart(2, '0');
-    let MM = m.toString().padStart(2, '0');
-    let SS = s.toString().padStart(2, '0');
-
-    return `${mm}/${dd}/${yyyy} ${HH}:${MM}:${SS}`;
-}
-
-export function formatInvoiceObject(invoice, vinno) {
-    let invoiceData = invoice.roInfo;
-    let formattedInvoice = {};
-    formattedInvoice.rono = invoiceData?.roNo || null;
-    formattedInvoice.model = invoiceData?.model || null;
-    formattedInvoice.regno = invoiceData?.regNo || null;
-    formattedInvoice.rodate = invoiceData?.roDate
-        ? dateFormatter(new Date(invoiceData.roDate))
-        : null;
-    formattedInvoice.saname = invoiceData?.saName || null;
+export function formatInvoiceObject(invoice, vinno, regno) {
+    const formattedInvoice = {};
+    formattedInvoice.rono = invoice?.roNo || null;
+    formattedInvoice.model = invoice?.model || null;
+    formattedInvoice.regno = regno || null;
+    formattedInvoice.rodate = invoice?.roDate ? dateFormatter(new Date(invoice.roDate)) : null;
+    formattedInvoice.saname = invoice?.saName || null;
     formattedInvoice.vinno = vinno;
-    formattedInvoice.odometer = invoiceData?.mileage || null;
-    formattedInvoice.phoneno = invoiceData?.phoneNo || null;
-    formattedInvoice.address = "".concat(
-        invoiceData?.address1 || "",
-        ", ",
-        invoiceData?.address2 || "",
-        ", ",
-        invoiceData?.address3 || ""
-    );
-    formattedInvoice.custname = invoiceData?.custName || null;
-    formattedInvoice.robillno = invoiceData?.roBillNo || null;
-    formattedInvoice.customerid = invoiceData?.customerId || null;
-    formattedInvoice.netbillamt = invoiceData?.netBillAmt || null;
-    formattedInvoice.parentname = invoiceData?.parentName || null;
-    formattedInvoice.robilldate = invoiceData?.roBillDate
-        ? dateFormatter(new Date(invoiceData.roBillDate))
-        : null;
-    formattedInvoice.taxdetails = invoiceData?.taxDetails || null;
-    formattedInvoice.discountlab = invoiceData?.discountLab || null;
-    formattedInvoice.labamttotal = invoiceData?.labAmtTotal || null;
-    formattedInvoice.partdetails = invoiceData?.partDetails || null;
-    formattedInvoice.roundoffamt = invoiceData?.roundOffAmt || null;
-    formattedInvoice.servicetype = invoiceData?.serviceType || null;
-    formattedInvoice.discountpart = invoiceData?.discountPart || null;
-    formattedInvoice.locationname = invoiceData?.locationName || null;
-    formattedInvoice.partamttotal = invoiceData?.partAmtTotal || null;
-    formattedInvoice.labourdetails = invoiceData?.labourDetails || null;
-    formattedInvoice.outstandingamt = invoiceData?.outstandingAmt || null;
-    formattedInvoice.sacontactnumber = invoiceData?.saContactNumber || null;
+    formattedInvoice.odometer = invoice?.mileage || null;
+    formattedInvoice.phoneno = invoice?.phoneNo || null;
+    formattedInvoice.address = ''.concat( invoice?.address1 || '', ', ', invoice?.address2 || '', ', ', invoice?.address3 || '');
+    formattedInvoice.custname = invoice?.custName || null;
+    formattedInvoice.robillno = invoice?.roBillNo || null;
+    formattedInvoice.customerid = invoice?.customerId || null;
+    formattedInvoice.netbillamt = invoice?.netBillAmt || null;
+    formattedInvoice.parentname = invoice?.parentName || null;
+    formattedInvoice.robilldate = invoice?.roBillDate ? dateFormatter(new Date(convertDateFormat(invoice.roBillDate))) : null;
+    formattedInvoice.taxdetails = invoice?.taxDetails || null;
+    formattedInvoice.discountlab = invoice?.discountLab || null;
+    formattedInvoice.labamttotal = invoice?.labAmtTotal || null;
+    formattedInvoice.partdetails = invoice?.partDetails || null;
+    formattedInvoice.roundoffamt = invoice?.roundOffAmt || null;
+    formattedInvoice.servicetype = invoice?.serviceType || null;
+    formattedInvoice.discountpart = invoice?.discountPart || null;
+    formattedInvoice.locationname = invoice?.locationName || null;
+    formattedInvoice.partamttotal = invoice?.partAmtTotal || null;
+    formattedInvoice.labourdetails = invoice?.labourDetails || null;
+    formattedInvoice.outstandingamt = invoice?.outstandingAmt || null;
+    formattedInvoice.sacontactnumber = invoice?.saContactNumber || null;
 
     return { roinfo: formattedInvoice };
 }
 
-export function getDateFromEpoch(epochMillis) {
-    epochMillis = epochMillis + (5.5 * 60 * 60 * 1000);
-    const daysSinceEpoch = Math.floor(epochMillis / 86400000); // 1 day = 86400000 ms
-    let days = daysSinceEpoch;
 
-    // Start from 1970
-    let year = 1970;
+export function convertDateFormat(dateString) {
+    if (!dateString) return null;
+    const dateRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+    const match = dateString.match(dateRegex);
+    if (match) {
+        const [, day, month, year] = match;
+        return `${month}/${day}/${year}`;
+    }
+    return dateString;
+}
 
-    // Step 1: Find the year
-    while (true) {
-        const isLeap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
-        const daysInYear = isLeap ? 366 : 365;
-        if (days >= daysInYear) {
-            days -= daysInYear;
-            year++;
-        } else {
-            break;
+
+
+export function userFriendlyError(errorCode) {
+    return (
+        userFriendlyErrorMessages[errorCode] || {
+            code: "INTERNAL_SERVER_ERROR",
+            message: 'Something went wrong.',
+            ResponseFn: APIResponseInternalErr,
+        }
+    );
+}
+
+
+export function getPreviousBookingStatus(activeBooking, vinno) {
+    if (!activeBooking[0].servicestatus) {
+        return null;
+    }
+
+    if (activeBooking[0].servicestatus === 'Booked') {
+        return {
+            isstatuscheck: true,
+            vinno: vinno,
+            isbooknow: false,
+            iscompleted: false,
+            iscancel: true,
+            isreschdule: true,
+            status: activeBooking[0].servicestatus,
+            dealername: activeBooking[0]?.dealername || null,
+            dealeraddress: activeBooking[0]?.dealerlocation || null
+        }
+    } else if (activeBooking[0].servicestatus === 'In Service') {
+        return {
+            isstatuscheck: true,
+            vinno: vinno,
+            isbooknow: false,
+            iscompleted: false,
+            iscancel: false,
+            isreschdule: false,
+            status: activeBooking[0].servicestatus,
+            dealername: activeBooking[0]?.dealername || null,
+            dealeraddress: activeBooking[0]?.dealerlocation || null
         }
     }
-
-    // Step 2: Find the month
-    const monthDays = [
-        31,
-        isLeapYear(year) ? 29 : 28,
-        31,
-        30,
-        31,
-        30,
-        31,
-        31,
-        30,
-        31,
-        30,
-        31,
-    ];
-    let month = 0;
-    while (days >= monthDays[month]) {
-        days -= monthDays[month];
-        month++;
-    }
-
-    // Step 3: Remaining days are the date
-    const day = days + 1;
-
-    // Format as YYYY-MM-DD
-    return `${year}-${pad(month + 1)}-${pad(day)}`;
+    return null;
 }
 
-export function getEpochFromDate(date) {
-    // Expects date in "YYYY-MM-DD" format, returns epoch millis at 00:00:00.000 UTC of that day
-    if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        throw new Error("Invalid date format. Expected YYYY-MM-DD");
-    }
-    const [yearStr, monthStr, dayStr] = date.split("-");
-    const year = parseInt(yearStr, 10);
-    const month = parseInt(monthStr, 10); // 1-based
-    const day = parseInt(dayStr, 10);
-
-    // Calculate days since 1970-01-01
-    let days = 0;
-    for (let y = 1970; y < year; y++) {
-        days += isLeapYear(y) ? 366 : 365;
-    }
-    const monthDays = [
-        31,
-        isLeapYear(year) ? 29 : 28,
-        31,
-        30,
-        31,
-        30,
-        31,
-        31,
-        30,
-        31,
-        30,
-        31,
-    ];
-    for (let m = 0; m < month - 1; m++) {
-        days += monthDays[m];
-    }
-    days += (day - 1);
-
-    return days * 86400000 - 5.5 * 60 * 60 * 1000;
+export function getADCModel(modelDisplayName) {
+    const treoModelDisplayName = ["treo cart", "treo grand", "treo zor", "treo yaari", "treo", "treo plus"];
+    const zeoModelDisplayName = ["mahindra zeo", "zeo"];
+    if (modelDisplayName && treoModelDisplayName.includes(modelDisplayName.toLowerCase()))
+        return "TREO"
+    else if (modelDisplayName && zeoModelDisplayName.includes(modelDisplayName.toLowerCase()))
+        return "ZEO"
+    else 
+        return null;
 }
 
-export function getStringDateFromEpoch(epochMillis) {
-    // Expects epochMillis as number, returns date in "DD mmm YY" format (e.g., "12 Jan 25")
-    if (typeof epochMillis !== "number" || !isFinite(epochMillis)) {
-        throw new Error("Invalid epochMillis. Must be a number.");
+
+export function checkUserPerms(userPermissions, requiredPermissions, mode = "any") {
+    if (!userPermissions || !Array.isArray(userPermissions)) {
+      return false;
     }
-
-    // Calculate total days since 1970-01-01
-    let istOffset = (5 * 60 * 60 * 1000) + (30 * 60 * 1000);
-    let istEpoch = epochMillis + istOffset;
-    let days = Math.floor(istEpoch / 86400000);
-
-    // Calculate year
-    let year = 1970;
-    while (true) {
-        let yearDays = isLeapYear(year) ? 366 : 365;
-        if (days >= yearDays) {
-            days -= yearDays;
-            year++;
-        } else {
-            break;
-        }
+  
+    if (userPermissions.includes("all.all.all")) {
+      return true;
     }
-
-    // Calculate month and day
-    const monthDays = [
-        31,
-        isLeapYear(year) ? 29 : 28,
-        31,
-        30,
-        31,
-        30,
-        31,
-        31,
-        30,
-        31,
-        30,
-        31,
-    ];
-    let month = 0;
-    while (days >= monthDays[month]) {
-        days -= monthDays[month];
-        month++;
+  
+    if (!requiredPermissions || !Array.isArray(requiredPermissions) || requiredPermissions.length === 0) {
+      return false;
     }
-    const day = days + 1;
-
-    // Month names
-    const monthNames = [
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-    ];
-
-    // Format year as last two digits
-    const yearShort = (year % 100).toString().padStart(2, "0");
-
-    // Format as "DD mmm YY"
-    return `${pad(day)} ${monthNames[month]} ${yearShort}`;
-}
-
-function isLeapYear(y) {
-    return y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0);
-}
-
-function pad(n) {
-    return n.toString().padStart(2, "0");
+  
+    if (mode === "all") {
+      return requiredPermissions.every((perm) => userPermissions.includes(perm));
+    } else {
+      return requiredPermissions.some((perm) => userPermissions.includes(perm));
+    }
 }

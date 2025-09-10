@@ -29,17 +29,8 @@ export default class PgPool {
       client.query("SET search_path TO " + pgcfg.schema + ",public");
     });
     
-    // Track connection acquisition
-    this.Pool.on("acquire", (client) => {
-      this.activeConnections++;
-      this.logger.info(`Pool connection acquired: ${this.activeConnections}/${this.maxConnections}`);
-    });
-    
-    // Track connection release
-    this.Pool.on("release", (client) => {
-      this.activeConnections--;
-      this.logger.info(`Pool connection released, active connections: ${this.activeConnections}/${this.maxConnections}`);
-    });
+    this.Pool.on("acquire", (client) => {});
+    this.Pool.on("release", (client) => {});
 
     this.Pool.on("error", (_) => {
       this.logger.error("Client connection unexpectedly closed..");
@@ -57,8 +48,8 @@ export default class PgPool {
       client = await this.Pool.connect();
     } catch (error) {
       this.logger.error(error);
-      let errorresp = error;
-      if (error.hasOwnProperty("message")) errorresp.msg = error.message;
+      const errorresp = error;
+      if (error.hasOwnProperty("message")) {errorresp.msg = error.message;}
       return [null, ErrConnect.NewWData(error)];
     }
     try {
@@ -66,8 +57,8 @@ export default class PgPool {
       return [client, null];
     } catch (error) {
       this.logger.error(error);
-      let errorresp = error;
-      if (error.hasOwnProperty("message")) errorresp.msg = error.message;
+      const errorresp = error;
+      if (error.hasOwnProperty("message")) {errorresp.msg = error.message;}
       client.release();
       return [null, ErrTXNStart.NewWData(error)];
     }
@@ -79,27 +70,27 @@ export default class PgPool {
       client = await this.Pool.connect();
     } catch (error) {
       this.logger.error(error);
-      let errorresp = error;
-      if (error.hasOwnProperty("message")) errorresp.msg = error.message;
+      const errorresp = error;
+      if (error.hasOwnProperty("message")) {errorresp.msg = error.message;}
       return [null, ErrConnect.NewWData(error)];
     }
     try {
       await client.query("BEGIN");
-      let funcres = await queryfn(client);
+      const funcres = await queryfn(client);
       await client.query("COMMIT");
       return funcres;
     } catch (error) {
-      let rollbackerr = await this.TxRollback(client);
+      const rollbackerr = await this.TxRollback(client);
       if (rollbackerr != null) {
         this.logger.error(rollbackerr);
-        let errorresp = rollbackerr;
+        const errorresp = rollbackerr;
         if (error.hasOwnProperty("message"))
-          errorresp.msg = rollbackerr.message;
+          {errorresp.msg = rollbackerr.message;}
         return [null, ErrTXNRollback.NewWData(rollbackerr)];
       }
       this.logger.error(error);
-      let errorresp = error;
-      if (error.hasOwnProperty("message")) errorresp.msg = error.message;
+      const errorresp = error;
+      if (error.hasOwnProperty("message")) {errorresp.msg = error.message;}
       return [null, ErrTXNExec.NewWData(errorresp)];
     } finally {
       if (client) {

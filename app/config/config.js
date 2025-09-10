@@ -16,7 +16,7 @@ if (process.env.APP_ENV === "STAGING") {
     config = localConfig;
 }
 
-const ALLOWED_SCHEMAS = ['devfmscoresch', 'stgcoreschema', 'servicesch'];
+const ALLOWED_SCHEMAS = ['devfmscoresch', 'stgcoreschema', 'servicesch', 'refactordevfmscoresch', 'refactorservicesch'];
 
 function validateSchema(schemaName) {
   if (!ALLOWED_SCHEMAS.includes(schemaName)) {

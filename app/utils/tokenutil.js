@@ -3,12 +3,10 @@ import { APIResponseUnauthorized } from "./responseutil.js";
 
 export const AuthenticateAccountTokenFromCookie = (req, res, next) => {
     try {
-        
-        let cookie = req.headers["Cookie"] || req.headers["cookie"];
-        req.cookie = cookie;
-
         let token = req.headers["Cookie"] || req.headers["cookie"];
-        if (!token) {
+        req.cookie = token;
+        
+        if (!token || token.trim() === '') {
             APIResponseUnauthorized(
                 req,
                 res,
@@ -20,7 +18,7 @@ export const AuthenticateAccountTokenFromCookie = (req, res, next) => {
 
         // handle multiple cookies
         if (token.includes(";")) {
-            let cookies = token.split(";");
+            const cookies = token.split(";");
             for (let eachcookie of cookies) {
                 eachcookie = eachcookie.trim();
                 if (eachcookie.startsWith("token=")) {
@@ -34,7 +32,7 @@ export const AuthenticateAccountTokenFromCookie = (req, res, next) => {
             token = token.substring(6);
         }
 
-        let claims = GetUnVerifiedClaims(token);
+        const claims = GetUnVerifiedClaims(token);
         if (!claims) {
             APIResponseUnauthorized(req, res, "INVALID_TOKEN", "Invalid token");
             return;
@@ -69,7 +67,7 @@ export const AuthenticateAccountTokenFromCookie = (req, res, next) => {
 
         next();
     } catch (error) {
-        this.logger.error("Account token authentication failed", error);
+        console.log("Token validation error:", error);
         APIResponseUnauthorized(
             req,
             res,
