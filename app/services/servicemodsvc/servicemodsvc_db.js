@@ -97,17 +97,16 @@ export default class ServiceModSvcDB {
         }
     }
 
-    async getOnboardingQueue(vinno, mobileno) {
+    async getOnboardingPendingQueue(vinno) {
         try {
             const query = `SELECT 
                                     vinno,
                                     mobileno, 
                                     muserid, 
-                                    onboardingstatus,
                                     createdat 
-                                FROM ${this.config.schemas.service}.onboarding_queue 
-                                WHERE vinno = $1 AND mobileno = $2 AND muserid = $3;`;
-            const result = await this.pgPoolI.Query(query, [vinno, mobileno, `NEMO3.0-ADC-USERID-${mobileno}`]);
+                                FROM ${this.config.schemas.service}.onboarding_pending_queue 
+                                WHERE vinno = $1;`;
+            const result = await this.pgPoolI.Query(query, [vinno]);
             const onboardingQueue = result.rows;
             if (onboardingQueue.length > 0) {
                 return onboardingQueue[0];
@@ -118,91 +117,84 @@ export default class ServiceModSvcDB {
         }
     }
 
-    async createOnboardingQueue(vinno, mobileno, onboardingStatus) {
+    // I can do an upsert here, when conflict happens, update the mobileno and muserid but i ll go with the insert and update approach for now
+    async createOnboardingPendingQueue(vinno, mobileno) {
         try {
-            const query = `INSERT INTO ${this.config.schemas.service}.onboarding_queue 
-                            (vinno, mobileno, muserid, onboardingstatus) 
-                            VALUES ($1, $2, $3, $4);`;
-            await this.pgPoolI.Query(query, [vinno, mobileno, `NEMO3.0-ADC-USERID-${mobileno}`, onboardingStatus]);
+            const query = `INSERT INTO ${this.config.schemas.service}.onboarding_pending_queue 
+                            (vinno, mobileno, muserid)
+                            VALUES ($1, $2, $3);`;
+            await this.pgPoolI.Query(query, [vinno, mobileno, `NEMO3.0-ADC-USERID-${mobileno}`]);
             return;
         } catch (error) {
             throw error;
         }
     }
 
-    async fetchPendingVehicleOnboarding(onboardingStatus) {
+    async updateOnboardingPendingQueue(vinno, mobileno) {
         try {
-            const query = `SELECT vinno, mobileno, muserid FROM ${this.config.schemas.service}.onboarding_queue WHERE onboardingstatus = $1`;
-            const result = await this.pgPoolI.Query(query, [onboardingStatus]);
-            this.logger.info(`fetchPendingVehicleOnboarding: ${result.rows.length} vehicles found`);
-            return result.rows;
+            const query = `UPDATE ${this.config.schemas.service}.onboarding_pending_queue SET mobileno = $1, muserid = $2 WHERE vinno = $3`;
+            await this.pgPoolI.Query(query, [mobileno, `NEMO3.0-ADC-USERID-${mobileno}`, vinno]);
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    async deleteOnboardingPendingQueue(txclient, vinno, mobileno) {
+        try {
+            const query = `DELETE FROM ${this.config.schemas.service}.onboarding_pending_queue WHERE vinno = $1 AND mobileno = $2`;
+            await txclient.query(query, [vinno, mobileno]);
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    async updateVehicleMobileno(txclient, vinno, mobileno) {
+        try {
+            const query = `UPDATE ${this.config.schemas.fmscoresch}.vehicle SET mobile = $1 WHERE vinno = $2;`;
+            await txclient.query(query, [mobileno, vinno]);
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    async fetchPendingVehicleOnboarding() {
+        try {
+            let query = `SELECT count(*) as total FROM ${this.config.schemas.service}.onboarding_pending_queue`;
+            const totalPendingOnboards = await this.pgPoolI.Query(query);
+
+            if (totalPendingOnboards.rows[0].total === 0) {
+                return { data: null, total: 0 };
+            }
+
+            query = `SELECT vinno, mobileno, muserid FROM ${this.config.schemas.service}.onboarding_pending_queue ORDER BY createdat LIMIT 1`;
+            const pendingOnboards = await this.pgPoolI.Query(query);
+            return { data: pendingOnboards.rows[0], total: totalPendingOnboards.rows[0].total };
         } catch (err) {
             this.logger.error('Error in fetchPendingVehicleOnboarding: ', err);
             throw 'Fetch pending vehicle to onboard failed, please try again later.';
         }
     }
 
-    async markVehicleOnboarded(vinno, mobileno, muserid, onboardingStatus) {
+    async markVehicleOnboarded(txclient, vinno, mobileno, muserid, responsebody) {
         try {
-            const query = `UPDATE ${this.config.schemas.service}.onboarding_queue SET onboardingstatus = $1 WHERE vinno = $2 AND mobileno = $3 AND muserid = $4`;
-            const result = await this.pgPoolI.Query(query, [onboardingStatus, vinno, mobileno, muserid]);
+            const query = `INSERT INTO ${this.config.schemas.service}.onboarding_done (vinno, mobileno, muserid, responsebody) VALUES ($1, $2, $3, $4)`;
+            await txclient.query(query, [vinno, mobileno, muserid, responsebody]);
             this.logger.info(`muserid ${muserid} onboarded`);
-            return result.rows;
-        } catch (err) {
-            this.logger.error('Error in markVehicleOnboarded: ', err);
+            return;
+        } catch (error) {
+            this.logger.error('Error in markVehicleOnboarded: ', error.toString());
+            throw error;
         }
     }
 
-    async moveToErrorTable(onboardingData, errorResult) {
-        const [txclient, err] = await this.pgPoolI.StartTransaction();
-        if (err) {
-            this.logger.error('Error in moveToErrorTable: ', err);
-            return;
-        }
+    async moveToErrorTable(txclient, onboardingData, errorResult) {
         try {
-            let query = `
-                SELECT  
-                    vinno 
-                FROM ${this.config.schemas.service}.onboarding_queue
-                WHERE vinno = $1 
-                AND mobileno = $2 
-                AND muserid = $3
-                `;
-            let result = await txclient.query(query, [onboardingData.vinno, onboardingData.mobileNumber, onboardingData.userId]);
-            if (result.rows.length === 0) {
-                this.logger.info(`muserid ${onboardingData.userId} not found`);
-                this.pgPoolI.TxRollback(txclient);
-                return;
-            }
-            query = `
-                SELECT 
-                    vinno, 
-                    mobileno, 
-                    muserid 
-                FROM ${this.config.schemas.service}.onboarding_queue_error 
-                WHERE vinno = $1 
-                AND mobileno = $2 
-                AND muserid = $3`;
-            result = await txclient.query(query, [onboardingData.vinno, onboardingData.mobileNumber, onboardingData.userId]);
-            const params = [];
-            if (result.rows.length === 0) {
-                query = `INSERT INTO ${this.config.schemas.service}.onboarding_queue_error (vinno, mobileno, muserid, requestbody, responsebody) VALUES ($1, $2, $3, $4, $5)`;
-                params.push(onboardingData.vinno, onboardingData.mobileNumber, onboardingData.userId, JSON.stringify(onboardingData), JSON.stringify(errorResult));
-            } else {
-                query = `UPDATE ${this.config.schemas.service}.onboarding_queue_error SET requestbody = $1, responsebody = $2 WHERE vinno = $3 AND mobileno = $4 AND muserid = $5`;
-                params.push(JSON.stringify(onboardingData), JSON.stringify(errorResult), onboardingData.vinno, onboardingData.mobileNumber, onboardingData.userId);
-            }
-
-            await txclient.query(query, params);
-
-            query = `DELETE FROM ${this.config.schemas.service}.onboarding_queue WHERE vinno = $1 AND mobileno = $2 AND muserid = $3`;
-            await txclient.query(query, [onboardingData.vinno, onboardingData.mobileNumber, onboardingData.userId]);
-
-            await this.pgPoolI.TxCommit(txclient);
+            const query = `INSERT INTO ${this.config.schemas.service}.onboarding_error (vinno, mobileno, muserid, requestbody, responsebody) VALUES ($1, $2, $3, $4, $5)`;
+            await txclient.query(query, [onboardingData.vinno, onboardingData.mobileNumber, onboardingData.userId, JSON.stringify(onboardingData), JSON.stringify(errorResult)]);
             this.logger.info(`muserid ${onboardingData.userId} moved to error table`);
         } catch (error) {
-            this.logger.error('Error in moveToErrorTable: ', error);
-            await this.pgPoolI.TxRollback(txclient);
+            this.logger.error('Error in moveToErrorTable: ', error.toString());
+            throw error;
         }
     }
 

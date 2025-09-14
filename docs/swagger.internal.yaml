@@ -263,66 +263,6 @@ paths:
         '500':
           description: Internal server error
 
-  # Cost Estimate
-  /api/v1/fms/service/cost/estimate:
-    post:
-      tags:
-        - Service Booking
-      summary: Get vehicle service cost estimate
-      description: Returns cost estimate for vehicle service
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - vinno
-                - selectedkm
-              properties:
-                vinno:
-                  type: string
-                  minLength: 17
-                  maxLength: 17
-                  description: Vehicle VIN number
-                selectedkm:
-                  type: string
-                  description: Selected kilometer reading
-                model:
-                  type: string
-                  default: "TREO"
-                  description: Vehicle model
-      responses:
-        '200':
-          description: Cost estimate retrieved successfully
-        '400':
-          description: Invalid request body
-        '500':
-          description: Internal server error
-
-  # Schedule Job Types
-  /api/v1/fms/service/shedulejobtypes:
-    get:
-      tags:
-        - Service Management
-      summary: Get schedule job types
-      description: Returns available schedule job types
-      parameters:
-        - name: modelDesc
-          in: query
-          required: false
-          schema:
-            type: string
-            default: "TREO"
-          description: Model description
-      responses:
-        '200':
-          description: Schedule job types retrieved successfully
-        '400':
-          description: Invalid request parameters
-        '500':
-          description: Internal server error
-
   # Dealer Management
   /api/v1/fms/service/dealer/list/search:
     post:
@@ -501,9 +441,6 @@ paths:
               required:
                 - vinno
               properties:
-                model:
-                  type: string
-                  description: Vehicle model
                 vinno:
                   type: string
                   minLength: 17
@@ -553,9 +490,6 @@ paths:
                 longitude:
                   type: number
                   description: Location longitude
-                description:
-                  type: string
-                  description: Description of the emergency
       responses:
         '200':
           description: SOS raised successfully
@@ -757,6 +691,29 @@ paths:
           description: Invoice retrieved successfully
         '400':
           description: Invalid request body
+        '500':
+          description: Internal server error
+
+  /api/v1/fms/service/vehicle/external/info:
+    get:
+      tags:
+        - Vehicle Management
+      summary: Get external vehicle information
+      description: Returns external vehicle information
+      parameters:
+        - name: vinno
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 17
+            maxLength: 17
+          description: Vehicle VIN number
+      responses:
+        '200':
+          description: External vehicle information retrieved successfully
+        '400':
+          description: Invalid request parameters
         '500':
           description: Internal server error
 

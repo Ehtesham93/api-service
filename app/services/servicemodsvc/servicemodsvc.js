@@ -48,9 +48,9 @@ export default class ServiceModSvc {
         }
     }
 
-    async GetOnboardingQueue(vinno, mobileno) {
+    async GetOnboardingPendingQueue(vinno) {
         try {
-            return await this.serviceModSvcDB.getOnboardingQueue(vinno, mobileno);
+            return await this.serviceModSvcDB.getOnboardingPendingQueue(vinno);
         } catch (error) {
             throw {
                 errcode: 'INTERNAL_SERVER_ERROR',
@@ -58,9 +58,9 @@ export default class ServiceModSvc {
         }
     }
 
-    async CreateOnboardingQueue(vinno, mobileno, onboardingStatus) {
+    async CreateOnboardingPendingQueue(vinno, mobileno) {
         try {
-            return await this.serviceModSvcDB.createOnboardingQueue(vinno, mobileno, onboardingStatus);
+            return await this.serviceModSvcDB.createOnboardingPendingQueue(vinno, mobileno);
         } catch (error) {
             throw {
                 errcode: 'INTERNAL_SERVER_ERROR',
@@ -68,16 +68,26 @@ export default class ServiceModSvc {
         }
     }
 
-    async FetchPendingVehicleOnboarding(onboardingStatus) {
-        return this.serviceModSvcDB.fetchPendingVehicleOnboarding(onboardingStatus);
+    async UpdateOnboardingPendingQueue(vinno, mobileno) {
+        try {
+            return await this.serviceModSvcDB.updateOnboardingPendingQueue(vinno, mobileno);
+        } catch (error) {
+            throw {
+                errcode: 'INTERNAL_SERVER_ERROR'
+            }
+        }
     }
 
-    async MarkVehicleOnboarded(vinno, mobileno, muserid, onboardingStatus) {
-        return this.serviceModSvcDB.markVehicleOnboarded(vinno, mobileno, muserid, onboardingStatus);
+    async FetchPendingVehicleOnboarding() {
+        return this.serviceModSvcDB.fetchPendingVehicleOnboarding();
     }
 
-    async MoveToErrorTable(onboardingData, errorresult) {
-        return this.serviceModSvcDB.moveToErrorTable(onboardingData, errorresult);
+    async MarkVehicleOnboarded(txclient, vinno, mobileno, muserid, responsebody) {
+        return this.serviceModSvcDB.markVehicleOnboarded(txclient, vinno, mobileno, muserid, responsebody);
+    }
+
+    async MoveToErrorTable(txclient, onboardingData, errorresult) {
+        return this.serviceModSvcDB.moveToErrorTable(txclient, onboardingData, errorresult);
     }
 
     async GetFleetVehicles(fleetids) {
@@ -328,6 +338,26 @@ export default class ServiceModSvc {
             throw {
                 errcode: 'INTERNAL_SERVER_ERROR'
             };
+        }
+    }
+
+    async DeleteOnboardingPendingQueue(txclient, vinno, mobileno) {
+        try {
+            return await this.serviceModSvcDB.deleteOnboardingPendingQueue(txclient, vinno, mobileno);
+        } catch (error) {
+            throw {
+                errcode: 'INTERNAL_SERVER_ERROR'
+            }
+        }
+    }
+
+    async UpdateVehicleMobileno(txclient, vinno, mobileno) {
+        try {
+            return await this.serviceModSvcDB.updateVehicleMobileno(txclient, vinno, mobileno);
+        } catch (error) {
+            throw {
+                errcode: 'INTERNAL_SERVER_ERROR'
+            }
         }
     }
 }

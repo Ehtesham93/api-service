@@ -11,15 +11,12 @@ export default class ServiceHdlrImpl {
 
     VehicleOnboardingLogic = async (vinno, mobileNo) => {
         try {
-            const onboardingQueue = await this.serviceModSvcI.GetOnboardingQueue(vinno, mobileNo);
+            const onboardingQueue = await this.serviceModSvcI.GetOnboardingPendingQueue(vinno);
             if (onboardingQueue) {
-                if (onboardingQueue.onboardingstatus === this.ONBOARDING_STATUS.PENDING) {
-                    return 'Onboarding request already exists';
-                } else if (onboardingQueue.onboardingstatus === this.ONBOARDING_STATUS.COMPLETED) {
-                    return 'Onboarding request already completed';
-                }
+                await this.serviceModSvcI.UpdateOnboardingPendingQueue(vinno, mobileNo);
+                return 'Onboarding request updated successfully';
             }
-            await this.serviceModSvcI.CreateOnboardingQueue(vinno, mobileNo, this.ONBOARDING_STATUS.PENDING);
+            await this.serviceModSvcI.CreateOnboardingPendingQueue(vinno, mobileNo);
             return 'Onboarding request submitted successfully';
         } catch (error) {
             error instanceof Error && this.logger.error('Error in VehicleOnboarding: ', error.toString());

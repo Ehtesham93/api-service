@@ -3,7 +3,7 @@ export default {
         host: "mahindra-tunnel.intellicar.io",
         port: 22041,
         database: "lmmintellicar",
-        schema: "stgfmscoresch",
+        schema: "devfmscoresch",
         user: "lmmintellicar_admin",
         password: "Z52DWfsAZIBtnOK",
     },
@@ -23,11 +23,11 @@ export default {
         xapikey: "UmmC8ImZwM3n1B2CeC0lo7LMvNwRFh5i2tVWavSN",
     },
     schemas: {
-        fmscoresch: "stgfmscoresch",
-        service: "servicesch",
+        fmscoresch: "devfmscoresch",
+        service: "refactorservicesch",
     },
     externalapi: {
-        baseurl: "https://stg-nemo.mahindralastmilemobility.com:8443/api/v1/fms",
+        baseurl: "https://stg-nemo.mahindralastmilemobility.com:2083/api/v1/fms",
         referer: "https://stg-nemo.mahindralastmilemobility.com:2083"
     },
     pathPrefix: "",

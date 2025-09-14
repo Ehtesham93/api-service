@@ -6,11 +6,7 @@ let config = null;
 let pollDatabaseTimeout = null;
 let processQueueTimeout = null;
 let pollProcessQueueTimeout = null;
-
-const ONBOARDING_STATUS = {
-  PENDING: 'PENDING',
-  COMPLETED: 'COMPLETED',
-};
+let pollInterval = 1000;
 
 export function initializeServiceModDB(svcinstance, configinstance) {
     serviceModSvcI = svcinstance;
@@ -26,37 +22,36 @@ function wait(ms) {
 }
 
 export async function pollDatabase() {
-
   try {
-    const onboardingData = await serviceModSvcI.FetchPendingVehicleOnboarding(ONBOARDING_STATUS.PENDING);
-
-    for (const data of onboardingData) {
-      if (!processingQueue.find(eachdata => eachdata.muserid === data.muserid && eachdata.vinno === data.vinno && eachdata.mobileno === data.mobileno)) {
-        processingQueue.push(data);
-        console.log(`Onboarding request with muserid ${data.muserid} added to processing queue`);
-      }
+    const onboardingData = await serviceModSvcI.FetchPendingVehicleOnboarding();
+    if (onboardingData.total > 1) {
+      pollInterval = 1000;
+    } else {
+      pollInterval = 5 * 1000;
+    }
+    if (onboardingData.data) {
+      processingQueue.push(onboardingData.data);
     }
   } catch (err) {
     console.error('Error polling database:', err);
   } finally {
-    pollDatabaseTimeout = setTimeout(pollDatabase, 5 * 60 * 1000);
+    pollDatabaseTimeout = setTimeout(pollDatabase, pollInterval);
   }
 }
 
 export async function processQueue() {
   if (isProcessing || processingQueue.length === 0) {
-    return setTimeout(processQueue, 2000);
+    return setTimeout(processQueue, pollInterval);
   }
 
   isProcessing = true;
   const onboardingData = processingQueue.shift();
-
   console.log(`Starting onboarding for muserid ${onboardingData.muserid}`);
 
   while (true) {
     try {
       const vehicleDetails = await serviceModSvcI.GetSingleVehicleDetail(onboardingData.vinno);
-      let model = getADCModel(vehicleDetails[0].modelDisplayName);
+      let model = getADCModel(vehicleDetails[0].modeldisplayname);
       const chassisNumber = getChassisNumber(onboardingData.vinno);
       if (!model) {
         model = "A301";
@@ -72,26 +67,34 @@ export async function processQueue() {
         modelDescription: model
       }
       const result = await callAuthExternalAPI(onboardingObj);
+
+      const txclient = await serviceModSvcI.StartTransaction();
       if (result.status === 'success') {
-        await serviceModSvcI.MarkVehicleOnboarded(onboardingData.vinno, onboardingObj.mobileNumber, onboardingObj.userId, ONBOARDING_STATUS.COMPLETED);
+        await serviceModSvcI.DeleteOnboardingPendingQueue(txclient, onboardingData.vinno, onboardingData.mobileno);
+        await serviceModSvcI.UpdateVehicleMobileno(txclient, onboardingData.vinno, onboardingObj.mobileNumber);
+        await serviceModSvcI.MarkVehicleOnboarded(txclient, onboardingData.vinno, onboardingObj.mobileNumber, onboardingObj.userId, result.response);
+        await serviceModSvcI.CommitTransaction(txclient);
         break;
       } else if (result.status === 'error') {
-        await serviceModSvcI.MoveToErrorTable({...onboardingObj, vinno: onboardingData.vinno }, result.errorData);
+        await serviceModSvcI.DeleteOnboardingPendingQueue(txclient, onboardingData.vinno, onboardingData.mobileno);
+        await serviceModSvcI.MoveToErrorTable(txclient, {...onboardingObj, vinno: onboardingData.vinno }, result.errorData);
+        await serviceModSvcI.CommitTransaction(txclient);
         break;
       }
     } catch (err) {
+      await serviceModSvcI.RollbackTransaction(txclient);
       console.log(`Retrying in 5s for muserid ${onboardingData.muserid} reason ${err?.message || err.response?.data?.message}`);
-      await wait(5000);
+      await wait(2000);
     }
   }
 
   isProcessing = false;
-  processQueueTimeout = setTimeout(processQueue, 0);
+  processQueueTimeout = setTimeout(processQueue, pollInterval);
 }
 
 async function callAuthExternalAPI(onboardingData) {
   try {
-    await axios.post(`${config.mahindrasvc.baseurl}/user/v2/auth/external`, {
+    const response = await axios.post(`${config.mahindrasvc.baseurl}/user/v2/auth/external`, {
         userId: onboardingData.userId,
         mobileNumber: onboardingData.mobileNumber,
         flow: "OWNED",
@@ -113,7 +116,7 @@ async function callAuthExternalAPI(onboardingData) {
       }
     });
 
-    return { status: 'success' };
+    return { status: 'success', response: response.data };
   } catch (err) {
     if (
         err.code === 'ECONNREFUSED' ||

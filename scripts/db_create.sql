@@ -118,32 +118,42 @@ CREATE TABLE refactorservicesch.service_kilometer (
 );
 
 
-CREATE TABLE refactorservicesch.onboarding_queue (
+CREATE TABLE servicesch.onboarding_pending_queue (
     vinno TEXT NOT NULL,
     mobileno TEXT NOT NULL,
     muserid TEXT NOT NULL,
     createdat TIMESTAMPTZ DEFAULT now(),
-    onboardingstatus TEXT NOT NULL DEFAULT 'PENDING',
     PRIMARY KEY (vinno)
 );
 
-CREATE INDEX onboarding_queue_mobileno_idx ON refactorservicesch.onboarding_queue (mobileno);
+CREATE INDEX onboarding_pending_queue_mobileno_idx ON servicesch.onboarding_pending_queue (mobileno);
 
 
 
 
+CREATE TABLE servicesch.onboarding_done (
+    vinno TEXT NOT NULL,
+    mobileno TEXT NOT NULL,
+    muserid TEXT NOT NULL,
+    responsebody JSONB DEFAULT '{}'::jsonb,
+    createdat TIMESTAMPTZ DEFAULT now(),
+    PRIMARY KEY (vinno, createdat)
+);
 
-CREATE TABLE refactorservicesch.onboarding_queue_error (
+CREATE INDEX onboarding_done_mobileno_idx ON servicesch.onboarding_done (mobileno);
+
+
+CREATE TABLE servicesch.onboarding_error (
     vinno TEXT NOT NULL,
     mobileno TEXT NOT NULL,
     muserid TEXT NOT NULL,
     createdat TIMESTAMPTZ DEFAULT now(),
     requestbody JSONB DEFAULT '{}'::jsonb,
     responsebody JSONB DEFAULT '{}'::jsonb,
-    PRIMARY KEY (vinno)
+    PRIMARY KEY (vinno, createdat)
 );
 
-CREATE INDEX onboarding_queue_mobileno_idx ON refactorservicesch.onboarding_queue_error (mobileno);
+CREATE INDEX onboarding_error_mobileno_idx ON servicesch.onboarding_error (mobileno);
 
 
 
