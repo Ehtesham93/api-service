@@ -207,11 +207,11 @@ export default class ServiceModHdlr {
             });
             this.validateAllInputs(schema, req.body);
             const modeldesc = getADCModel(modeldisplayname);
-            if (!modeldesc) {
-                throw {
-                    errcode: "NO_DEALER_FOUND"
-                }
-            }
+            // if (!modeldesc) {
+            //     throw {
+            //         errcode: "NO_DEALER_FOUND"
+            //     }
+            // }
             const result = await this.serviceModHdlrI.ListDealersLogic(accountid, userid, vinno, latitude, longitude, modeldesc, cookie);
             APIResponseOK(req, res, result, 'Dealers fetched successfully');
         } catch (error) {

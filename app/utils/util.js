@@ -390,7 +390,7 @@ export function getADCModel(modelDisplayName) {
     else if (modelDisplayName && zeoModelDisplayName.includes(modelDisplayName.toLowerCase()))
         return "ZEO"
     else 
-        return null;
+        return "A301";
 }
 
 

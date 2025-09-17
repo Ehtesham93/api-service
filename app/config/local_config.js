@@ -24,7 +24,7 @@ export default {
     },
     schemas: {
         fmscoresch: "devfmscoresch",
-        service: "refactorservicesch",
+        service: "servicesch",
     },
     externalapi: {
         baseurl: "https://stg-nemo.mahindralastmilemobility.com:2083/api/v1/fms",

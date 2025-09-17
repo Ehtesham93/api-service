@@ -3,7 +3,7 @@ export default {
         host: "rds-nemo-stage.c55qjjjzouym.ap-south-1.rds.amazonaws.com",
         port: 5432,
         database: "lmmintellicar",
-        schema: "seedfmscoresch",
+        schema: "devfmscoresch",
         user: "lmmintellicar_admin",
         password: "Z52DWfsAZIBtnOK",
     },
@@ -23,7 +23,7 @@ export default {
         xapikey: "UmmC8ImZwM3n1B2CeC0lo7LMvNwRFh5i2tVWavSN",
     },
     schemas: {
-        fmscoresch: "seedfmscoresch",
+        fmscoresch: "devfmscoresch",
         service: "servicesch",
     },
     externalapi: {
