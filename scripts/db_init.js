@@ -90,11 +90,10 @@ async function main() {
     // Postgres doesn't support CREATE USER IF NOT EXISTS, so use DO block
     await pgclient.query(
       "DO $$ BEGIN " +
-      "IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = $1) THEN " +
+      "IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = '" + targetusername + "') THEN " +
       "   CREATE USER " + targetusername + " WITH PASSWORD '" + targetpassword + "'; " +
       "END IF; " +
-      "END $$;",
-      [targetusername]
+      "END $$;"
     );
     console.log("2. User created..");
 

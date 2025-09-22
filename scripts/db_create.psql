@@ -3,6 +3,12 @@ SELECT
 
 SHOW search_path;
 
+-- Create sequences first
+CREATE SEQUENCE sos_reasons_id_seq;
+CREATE SEQUENCE service_kilometers_id_seq;
+CREATE SEQUENCE cancel_reasons_id_seq;
+CREATE SEQUENCE dealer_slots_id_seq;
+
 CREATE TABLE active_service_booking
 (
     vinno TEXT NOT NULL,
@@ -22,8 +28,8 @@ CREATE TABLE active_service_booking
     -- UNIQUE (ronumber),
     -- UNIQUE (dmsbookingid),
     -- UNIQUE (appointmentid),
-    FOREIGN KEY (vinno) REFERENCES stgfmscoresch.vehicle (vinno),
-    FOREIGN KEY (createdby) REFERENCES stgfmscoresch.users (userid)
+    FOREIGN KEY (vinno) REFERENCES prodfmscoresch.vehicle (vinno),
+    FOREIGN KEY (createdby) REFERENCES prodfmscoresch.users (userid)
 );
 
 
@@ -37,8 +43,8 @@ CREATE TABLE service_booking_log
     servicestatus TEXT NOT NULL,
     statusmeta JSONB,
     PRIMARY KEY (vinno, requestid, updatedat),
-    FOREIGN KEY (vinno) REFERENCES stgfmscoresch.vehicle (vinno),
-    FOREIGN KEY (updatedby) REFERENCES stgfmscoresch.users (userid)
+    FOREIGN KEY (vinno) REFERENCES prodfmscoresch.vehicle (vinno),
+    FOREIGN KEY (updatedby) REFERENCES prodfmscoresch.users (userid)
 );
 
 CREATE INDEX idx_service_booking_log_requestid ON service_booking_log (requestid);
@@ -66,8 +72,8 @@ CREATE TABLE service_done_history (
     createdat TIMESTAMPTZ DEFAULT now(),
     createdby UUID,
     PRIMARY KEY (vinno, bookingtime),
-    FOREIGN KEY (vinno) REFERENCES stgfmscoresch.vehicle (vinno),
-    FOREIGN KEY (createdby) REFERENCES stgfmscoresch.users (userid),
+    FOREIGN KEY (vinno) REFERENCES prodfmscoresch.vehicle (vinno),
+    FOREIGN KEY (createdby) REFERENCES prodfmscoresch.users (userid),
     UNIQUE (requestid),
     -- UNIQUE (ronumber),
     -- UNIQUE (dmsbookingid)
@@ -82,8 +88,8 @@ CREATE TABLE account_booking_history (
     requestid UUID NOT NULL,
     PRIMARY KEY (accountid, fleetid, vinno, bookingtime, requestid),
     UNIQUE (requestid),
-    FOREIGN KEY (vinno) REFERENCES stgfmscoresch.vehicle (vinno),
-    FOREIGN KEY (accountid) REFERENCES stgfmscoresch.account (accountid)
+    FOREIGN KEY (vinno) REFERENCES prodfmscoresch.vehicle (vinno),
+    FOREIGN KEY (accountid) REFERENCES prodfmscoresch.account (accountid)
 );
 
 CREATE INDEX idx_account_booking_history_vinno ON account_booking_history (vinno);
@@ -210,7 +216,6 @@ VALUES
 
 
 
-
 INSERT INTO service_kilometer (id, kilometer)
 VALUES
   (1, 2000),
@@ -261,6 +266,5 @@ VALUES
     ('repair_lmm_cv', 'Repair'),
     ('accidental_lmm_cv', 'Accidental'),
     ('scheduled_lmm_cv', 'Scheduled');
-
 
 
