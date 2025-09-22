@@ -1,4 +1,9 @@
-CREATE TABLE refactorservicesch.active_service_booking
+SELECT
+    NOW();
+
+SHOW search_path;
+
+CREATE TABLE active_service_booking
 (
     vinno TEXT NOT NULL,
     bookingtime TIMESTAMPTZ NOT NULL,
@@ -23,7 +28,7 @@ CREATE TABLE refactorservicesch.active_service_booking
 
 
 
-CREATE TABLE refactorservicesch.service_booking_log
+CREATE TABLE service_booking_log
 (
     vinno TEXT NOT NULL,
     requestid UUID NOT NULL,
@@ -36,12 +41,12 @@ CREATE TABLE refactorservicesch.service_booking_log
     FOREIGN KEY (updatedby) REFERENCES stgfmscoresch.users (userid)
 );
 
-CREATE INDEX idx_service_booking_log_requestid ON refactorservicesch.service_booking_log (requestid);
+CREATE INDEX idx_service_booking_log_requestid ON service_booking_log (requestid);
 
 
 
 
-CREATE TABLE refactorservicesch.service_done_history (
+CREATE TABLE service_done_history (
     vinno TEXT,
     bookingtime TIMESTAMPTZ,
     requestid UUID,
@@ -69,7 +74,7 @@ CREATE TABLE refactorservicesch.service_done_history (
 );
 
 
-CREATE TABLE refactorservicesch.account_booking_history (
+CREATE TABLE account_booking_history (
     accountid UUID NOT NULL,
     fleetid UUID NOT NULL,
     vinno TEXT NOT NULL,
@@ -81,11 +86,11 @@ CREATE TABLE refactorservicesch.account_booking_history (
     FOREIGN KEY (accountid) REFERENCES stgfmscoresch.account (accountid)
 );
 
-CREATE INDEX idx_account_booking_history_vinno ON refactorservicesch.account_booking_history (vinno);
+CREATE INDEX idx_account_booking_history_vinno ON account_booking_history (vinno);
 
 
 
-CREATE TABLE refactorservicesch.adc_service_api_log (
+CREATE TABLE adc_service_api_log (
     vinno TEXT NOT NULL,
     requesttime TIMESTAMPTZ DEFAULT now(),
     endpoint TEXT NOT NULL,
@@ -96,12 +101,12 @@ CREATE TABLE refactorservicesch.adc_service_api_log (
     PRIMARY KEY (vinno, requesttime)
 );
 
-CREATE INDEX idx_adc_service_api_log_endpoint ON refactorservicesch.adc_service_api_log (endpoint);
+CREATE INDEX idx_adc_service_api_log_endpoint ON adc_service_api_log (endpoint);
 
 
 
 
-CREATE TABLE refactorservicesch.sos_reason (
+CREATE TABLE sos_reason (
     id INTEGER NOT NULL DEFAULT nextval('sos_reasons_id_seq'::regclass),
     sosid INTEGER NOT NULL,
     name TEXT NOT NULL,
@@ -111,7 +116,7 @@ CREATE TABLE refactorservicesch.sos_reason (
 
 
 
-CREATE TABLE refactorservicesch.service_kilometer (
+CREATE TABLE service_kilometer (
     id INTEGER NOT NULL DEFAULT nextval('service_kilometers_id_seq'::regclass),
     kilometer INTEGER NOT NULL,
     PRIMARY KEY (id)
@@ -157,7 +162,7 @@ CREATE INDEX onboarding_error_mobileno_idx ON servicesch.onboarding_error (mobil
 
 
 
-CREATE TABLE refactorservicesch.cancel_reason (
+CREATE TABLE cancel_reason (
     id INTEGER NOT NULL DEFAULT nextval('cancel_reasons_id_seq'::regclass),
     cancellationid INTEGER,
     name TEXT NOT NULL,
@@ -167,7 +172,7 @@ CREATE TABLE refactorservicesch.cancel_reason (
 
 
 
-CREATE TABLE refactorservicesch.dealer_slot (
+CREATE TABLE dealer_slot (
     id INTEGER NOT NULL DEFAULT nextval('dealer_slots_id_seq'::regclass),
     slots TEXT NOT NULL,
     slotoffset INTEGER,
@@ -176,7 +181,7 @@ CREATE TABLE refactorservicesch.dealer_slot (
 );
 
 
-CREATE TABLE refactorservicesch.servicetype (
+CREATE TABLE servicetype (
     id TEXT NOT NULL,
     description TEXT,
     CONSTRAINT servicetypes_pkey PRIMARY KEY (id)
@@ -190,7 +195,7 @@ CREATE TABLE refactorservicesch.servicetype (
 
 
 
-INSERT INTO refactorservicesch.sos_reason (id, sosid, name, value)
+INSERT INTO sos_reason (id, sosid, name, value)
 VALUES
   (1, 6, 'Vehicle Not Starting', 'WYH_SOS_VEHIC_NOT_START'),
   (2, 7, 'Battery Discharged', 'WYH_SOS_BTRY_DSCHRG'),
@@ -206,7 +211,7 @@ VALUES
 
 
 
-INSERT INTO refactorservicesch.service_kilometer (id, kilometer)
+INSERT INTO service_kilometer (id, kilometer)
 VALUES
   (1, 2000),
   (2, 5000),
@@ -235,7 +240,7 @@ VALUES
 
 
 
-INSERT INTO refactorservicesch.cancel_reason (id, cancellationid, name, value)
+INSERT INTO cancel_reason (id, cancellationid, name, value)
 VALUES
   (1, 24, 'Vehicle in use', 'Vehicleinuse'),
   (2, 25, 'I am busy', 'Iambusy'),
@@ -245,13 +250,13 @@ VALUES
 
 
 
-INSERT INTO refactorservicesch.dealer_slot (id, slots, slotoffset, createdat)
+INSERT INTO dealer_slot (id, slots, slotoffset, createdat)
 VALUES
   (1, '10:00 AM', 10, NOW());
 
 
 
-INSERT INTO refactorservicesch.servicetype (id, description)
+INSERT INTO servicetype (id, description)
 VALUES
     ('repair_lmm_cv', 'Repair'),
     ('accidental_lmm_cv', 'Accidental'),
