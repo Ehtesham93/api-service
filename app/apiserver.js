@@ -62,10 +62,8 @@ export default class APIServer {
     );
     const allowLocalhost = function (origin, callback) {
       const allowedOrigins = [
-        /^http:\/\/localhost:\d+$/,
-        /^https:\/\/localhost:\d+$/,
-        /^https:\/\/.*\.mahindraelectric\.com:\d+$/,
-        /^https:\/\/.*\.mahindralastmilemobility\.com:\d+$/,
+        /^https:\/\/localhost:\d+$/, // any port on localhost
+        /^https:\/\/.*\.mahindralastmilemobility\.com(:\d+)?$/, // optional :port
       ];
 
       if (!origin) {return callback(null, true);}
