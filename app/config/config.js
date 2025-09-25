@@ -19,7 +19,7 @@ if (process.env.APP_ENV === "PRODUCTION") {
     config = localConfig;
 }
 
-const ALLOWED_SCHEMAS = ['devfmscoresch', 'stgcoreschema', 'servicesch', 'refactordevfmscoresch', 'refactorservicesch'];
+const ALLOWED_SCHEMAS = ['devfmscoresch', 'stgcoreschema', 'servicesch', 'prodfmscoresch'];
 
 function validateSchema(schemaName) {
   if (!ALLOWED_SCHEMAS.includes(schemaName)) {

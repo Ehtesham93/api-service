@@ -172,19 +172,19 @@ export default class ServiceHdlrImpl {
             for (let i = 0; i < response.length; i++) {
                 if (response[i].description === 'Accidental') {
                     typesdata.push({
-                        img: 'https://d15u4dbb8gfonu.cloudfront.net/nemo3-service-images/servicetypes/accidental/accidental.png',
+                        img: this.config.hardCodeData.accidentalServiceImg,
                         servicetype: response[i].description,
                         id: response[i].id,
                     });
                 } else if (response[i].description === 'Repair') {
                     typesdata.push({
-                        img: 'https://d15u4dbb8gfonu.cloudfront.net/nemo3-service-images/servicetypes/repair/repair.png',
+                        img: this.config.hardCodeData.repairServiceImg,
                         servicetype: response[i].description,
                         id: response[i].id,
                     });
                 } else if (response[i].description === 'Scheduled') {
                     typesdata.push({
-                        img: 'https://d15u4dbb8gfonu.cloudfront.net/nemo3-service-images/servicetypes/scheduled/scheduled.png',
+                        img: this.config.hardCodeData.scheduledServiceImg,
                         servicetype: response[i].description,
                         id: response[i].id,
                     });

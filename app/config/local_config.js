@@ -36,7 +36,10 @@ export default {
     },
     hardCodeData: {
         mobileNumber: "7592800016",
-        vinno: "MA1AD2ZA7PJF25158"
+        vinno: "MA1AD2ZA7PJF25158",
+        accidentalServiceImg: "https://d8zm4ywgfpzys.cloudfront.net/nemo3-service-images/servicetypes/accidental/accidental.png",
+        repairServiceImg: "https://d8zm4ywgfpzys.cloudfront.net/nemo3-service-images/servicetypes/repair/repair.png",
+        scheduledServiceImg: "https://d8zm4ywgfpzys.cloudfront.net/nemo3-service-images/servicetypes/scheduled/scheduled.png"
     },
     timeout: {
         axiostimeout: 60000,
