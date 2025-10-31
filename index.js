@@ -19,8 +19,8 @@ import { Logger } from "./lib/nemo3-lib-observability/index.js";
 const logger = new Logger({
   environment: process.env.APP_ENV || "LOCAL",
   service: "nemo3-api-service-svc",
-  instance: process.env.TASK_ARN || "localhost",
-  ip: process.env.TASK_IP || "127.0.0.1",
+  instance: process.env.INSTANCE || "localhost",
+  ip: process.env.IP || "127.0.0.1",
   loglevel: "info",
   logToConsole: config.logToConsole || false,
   maxSizeBytes: 10 * 1024 * 1024, // 10MB
@@ -68,11 +68,14 @@ if(!config.logToConsole){
 // 5. Initialize Swagger documentation
 swaggerDocs(App.app);
 
+// Initialize service module database and start polling if enabled
 initializeServiceModDB(serviceModSvcI, config);
 
+// Start polling for service onboarding if enabled in configuration
 if (config.enableServiceOnboarding) {
   startPolling();
 }
 
+// Start the API server on the configured port
 App.Start(apiserverport);
 

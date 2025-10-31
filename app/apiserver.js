@@ -21,8 +21,10 @@ export default class APIServer {
   }
 
   Start(port) {
+    // Add timeout middleware to handle request timeouts
     this.app.use(createTimeoutMiddleware(this.config.timeout.requesttimeout));
 
+    // Register all route handlers with their respective paths
     for (const eachhandler of this.apiroutehandlers) {
       const newrouter = promiserouter();
       eachhandler[1].RegisterRoutes(newrouter);
@@ -36,6 +38,7 @@ export default class APIServer {
       this.logger.info("App listening on port:" + port);
     });
 
+    // Set up graceful shutdown handlers for SIGINT and SIGTERM signals
     process.on("SIGINT", () => {
       stopPolling();
       this.#gracefulShutdown("SIGINT", server)
@@ -84,7 +87,9 @@ export default class APIServer {
         credentials: true, // allow sending cookies
       })
     );
+    // Enable cookie parsing middleware
     app.use(cookieParser());
+    // Enable request IP detection middleware
     app.use(requestIp.mw());
     // app.use(
     //   fileUpload({
@@ -135,6 +140,7 @@ export default class APIServer {
     return app;
   }
 
+  // Private method to handle 404 errors for non-existing routes
   #errornotfound(req, res, next) {
     // If we have reached here, we will throw an error..
     APIResponseForbidden(

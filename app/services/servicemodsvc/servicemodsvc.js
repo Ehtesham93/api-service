@@ -6,6 +6,7 @@ export default class ServiceModSvc {
         this.serviceModSvcDB = new ServiceModSvcDB(pgPoolI, wrapperI, logger, config);
     }
 
+    // Database transaction management methods
     async StartTransaction() {
         return this.serviceModSvcDB.startTransaction();
     }
@@ -18,6 +19,7 @@ export default class ServiceModSvc {
         return this.serviceModSvcDB.rollbackTransaction(txclient);
     }
 
+    // User and fleet management methods
     async GetUserFleets(accountid, userid) {
         try {
             return await this.serviceModSvcDB.getUserFleets(accountid, userid);
@@ -48,6 +50,7 @@ export default class ServiceModSvc {
         }
     }
 
+    // Vehicle onboarding queue management methods
     async GetOnboardingPendingQueue(vinno) {
         try {
             return await this.serviceModSvcDB.getOnboardingPendingQueue(vinno);
@@ -90,6 +93,7 @@ export default class ServiceModSvc {
         return this.serviceModSvcDB.moveToErrorTable(txclient, onboardingData, errorresult);
     }
 
+    // Fleet and vehicle service management methods
     async GetFleetVehicles(fleetids) {
         try {
             return await this.serviceModSvcDB.getFleetVehicles(fleetids);
@@ -140,6 +144,7 @@ export default class ServiceModSvc {
         }
     }
 
+    // Booking and vehicle details management methods
     async GetActiveBooking(vinno) {
         try {
             return await this.serviceModSvcDB.getActiveBooking(vinno);

@@ -56,5 +56,5 @@ export default {
         axiostimeout: 60000,
         requesttimeout: 90000
     },
-    enableServiceOnboarding: true
+    enableServiceOnboarding: false
 };

@@ -1,5 +1,6 @@
 import { APIResponseBadRequest, APIResponseForbidden, APIResponseInternalErr, APIResponseNotFound } from '../utils/responseutil.js';
 
+// Object containing user-friendly error messages and their corresponding response functions
 const userFriendlyErrorMessages = {
     USER_FLEET_NOT_FOUND: {
         code: 'USER_FLEET_NOT_FOUND',
@@ -198,10 +199,12 @@ const userFriendlyErrorMessages = {
     }
 };
 
+// Extract chassis number from VIN (last 8 characters)
 export function getChassisNumber(vinno) {
     return vinno.toString().substring(9, 17);
 }
 
+// Format date to DD MMM YYYY format in IST timezone
 export function dateFormatter(date) {
     if (!isNaN(date)) {
         const day = date.getDate().toString().padStart(2, '0');
@@ -215,6 +218,7 @@ export function dateFormatter(date) {
     return null;
 }
 
+// Convert epoch milliseconds to IST formatted string
 export function convertEpochToIST(epochMillis, dateandtime = true) {
     const formatter = new Intl.DateTimeFormat('en-IN', {
         timeZone: 'Asia/Kolkata',

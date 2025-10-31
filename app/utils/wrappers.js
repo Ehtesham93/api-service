@@ -8,18 +8,21 @@ export default class Wrapper {
         axios.defaults.timeout = this.config.timeout.axiostimeout;
     }
 
+    // Validate VIN number format and length
     validateVinno(vinno) {
         if (typeof vinno !== 'string' || vinno.length !== 17) {
             throw new Error('vinno missing/required');
         }
     }
 
+    // Validate request body contains all required fields
     validateBody(body, requiredFields) {
         if (Object.keys(body).length !== requiredFields.length || !requiredFields.every((key) => Object.keys(body).includes(key))) {
             throw new Error('invalid/missing parameters');
         }
     }
 
+    // Handle and format errors from external API responses
     handleError(error) {
         throw {
             errcode: error?.response?.data?.err?.errcode || error?.response?.data?.message || error?.response?.data?.data?.message || 'INTERNAL_SERVER_ERROR',

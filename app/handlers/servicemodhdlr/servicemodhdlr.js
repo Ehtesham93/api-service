@@ -14,18 +14,19 @@ export default class ServiceModHdlr {
     // TODO: add permission check for each route
     // TODO: add request validation for each route
     RegisterRoutes(router) {
+        // Public routes (no authentication required)
         router.post('/settoken', this.setToken);
-        //vehicle onboarding
+        //vehicle onboarding - allows vehicles to be onboarded to the service system
         router.post('/vehicle/onboarding', this.VehicleOnboarding);
 
-        
+        // Apply authentication middleware to all routes below this point
         router.use(AuthenticateAccountTokenFromCookie);
 
-        //overview
+        //overview routes - provide service overview and vehicle listings
         router.get('/overview', this.GetServiceOverview);
         router.get('/vehicles/list', this.GetVehiclesInService);
 
-        //booking
+        //booking routes - handle service booking operations
         router.get('/types', this.GetServiceTypes);
         router.post('/dealers', this.ListDealers);
         router.post('/dealer/slots', this.GetDealerSlots);
@@ -35,38 +36,44 @@ export default class ServiceModHdlr {
         router.get('/cancel/reasons', this.GetCancelReasons);
         router.post('/booking/cancel', this.CancelVehicleServiceBooking);
 
-        // vehicles
+        // vehicles routes - handle vehicle information and history
         router.get('/vehicle/history', this.GetVehicleServiceHistory);
         router.get('/vehicle/info', this.GetVehicleInfo);
         router.post('/vehicle/invoice', this.GetInvoice);
         router.get('/vehicle/external/info', this.GetExternalVehicleInfo);
 
-        // dealer
+        // dealer routes - handle dealer search and listing
         router.post('/dealer/list/search', this.ListDealerSearch);
         router.post('/dealer/search/nearest', this.ListNearestDealersSearch);
 
-        //SOS
+        //SOS routes - handle emergency service operations
         router.post('/sos/reasons', this.GetSoSDetails);
         router.post('/raise/sos', this.RaiseSOS);
 
-        //not used
+        //not used - legacy route for kilometers
         router.post('/kilometers', this.GetKilometers);
     }
 
+    // Handler for setting authentication token in cookie
     setToken = async (req, res, next) => {
         try {
             const token = req.body.token;
+            // Define validation schema for token input
             const schema = z.object({
                 token: z.string({ message: 'token is required' }).nonempty({ message: 'token cannot be empty' }),
             });
+            // Validate input against schema
             schema.parse({ token });
+            // Configure cookie options for token storage
             const cookieOptions = {
                 httpOnly: false,
                 secure: false,
                 sameSite: 'lax',
-                maxAge: 24 * 60 * 60 * 1000,
+                maxAge: 24 * 60 * 60 * 1000, // 24 hours
             };
+            // Set token in response cookie
             res.cookie('token', token, cookieOptions);
+            // Send success response
             APIResponseOK(
                 req,
                 res,
@@ -78,17 +85,21 @@ export default class ServiceModHdlr {
                 'Token set in cookie successful'
             );
         } catch (error) {
+            // Handle validation errors
             if (error.errcode === 'INPUT_ERROR') {
                 APIResponseBadRequest(req, res, error.errcode, error.errdata, error.message);
             } else {
+                // Handle other errors
                 APIResponseInternalErr(req, res, 'SET_TOKEN_ERR', error.toString(), 'Set token failed');
             }
         }
     };
 
+    // Handler for vehicle onboarding to the service system
     VehicleOnboarding = async (req, res, next) => {
         try {
             const { vinno, mobileno } = req.body;
+            // Define validation schema for vehicle onboarding input
             const schema = z.object({
                 vinno: z
                     .string({ message: 'Invalid vinno parameter, must be a string' })
@@ -98,7 +109,9 @@ export default class ServiceModHdlr {
                     .string({ message: 'Invalid mobileno parameter, must be a string' })
                     .regex(/^(\+?[1-9]\d{7,14}|[6789]\d{9})$/, 'Invalid mobile number must be 10 digits long and start with 6, 7, 8, or 9'),
             });
+            // Validate input against schema
             this.validateAllInputs(schema, { vinno, mobileno });
+            // Call service layer to process vehicle onboarding
             const result = await this.serviceModHdlrI.VehicleOnboardingLogic(vinno, mobileno);
             APIResponseOK(req, res, "vehicle onboarding request submitted successfully", result);
         } catch (error) {
@@ -608,14 +621,19 @@ export default class ServiceModHdlr {
     };
 
     //middlewares
+    // Utility method to validate input data against Zod schema
     validateAllInputs = (schema, data) => {
         try {
+            // Parse and validate data against schema
             return schema.parse(data);
         } catch (error) {
+            // Handle Zod validation errors
             if (error.issues && Array.isArray(error.issues)) {
+                // Map validation issues to standardized error format
                 const allErrors = error.issues.map((err) => {
                     let field = 'root';
                     if (err.path.length > 0) {
+                        // Find the last string key in the path
                         const lastKey = err.path
                             .slice()
                             .reverse()
@@ -630,6 +648,7 @@ export default class ServiceModHdlr {
                     };
                 });
 
+                // Format error message based on number of errors
                 let message;
                 if (allErrors.length === 1) {
                     message = allErrors[0].message;
@@ -640,11 +659,13 @@ export default class ServiceModHdlr {
                     message = `Please fix ${allErrors.length} validation errors and try again.`;
                 }
 
+                // Throw standardized input error
                 throw {
                     errcode: 'INPUT_ERROR',
                     errmsg: message,
                 };
             }
+            // Throw generic Zod error for non-validation issues
             throw {
                 errcode: 'ZOD_UTILIZATION_ERROR',
                 errmsg: error.toString(),
@@ -652,18 +673,24 @@ export default class ServiceModHdlr {
         }
     };
 
+    // Utility method to handle errors and send appropriate responses
     handleError = (req, res, error) => {
+        // Handle input validation errors with bad request response
         if (error.errcode === 'INPUT_ERROR' || error.errcode === 'ZOD_UTILIZATION_ERROR') {
             return APIResponseBadRequest(req, res, error.errcode, null, error.errmsg);
         }
+        // Get user-friendly error response configuration
         const { code, message, ResponseFn } = userFriendlyError(error.errcode);
+        // Handle specific user info not found error with custom message
         if (error.errmsg === 'User info not found') {
             return ResponseFn(req, res, code, null, 'We are facing issue with the following vehicle. Please try again after sometime.');
         }
+        // Send error response with error message or default message
         return ResponseFn(req, res, code, null, error.errmsg || message);
     };
 
     //extra
+    // Service type constants for different types of vehicle services
     ServiceType = {
         REPAIR: 'repair_lmm_cv',
         ACCIDENTAL: 'accidental_lmm_cv',
