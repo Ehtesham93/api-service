@@ -49,6 +49,7 @@ export async function processQueue() {
   console.log(`Starting onboarding for muserid ${onboardingData.muserid}`);
 
   while (true) {
+    let txclient = null;
     try {
       const vehicleDetails = await serviceModSvcI.GetSingleVehicleDetail(onboardingData.vinno);
       let model = getADCModel(vehicleDetails[0].modeldisplayname);
@@ -68,7 +69,7 @@ export async function processQueue() {
       }
       const result = await callAuthExternalAPI(onboardingObj);
 
-      const txclient = await serviceModSvcI.StartTransaction();
+      txclient = await serviceModSvcI.StartTransaction();
       if (result.status === 'success') {
         await serviceModSvcI.DeleteOnboardingPendingQueue(txclient, onboardingData.vinno, onboardingData.mobileno);
         await serviceModSvcI.UpdateVehicleMobileno(txclient, onboardingData.vinno, onboardingObj.mobileNumber);
@@ -82,7 +83,9 @@ export async function processQueue() {
         break;
       }
     } catch (err) {
-      await serviceModSvcI.RollbackTransaction(txclient);
+      if (txclient) {
+        await serviceModSvcI.RollbackTransaction(txclient);
+      }
       console.log(`Retrying in 5s for muserid ${onboardingData.muserid} reason ${err?.message || err.response?.data?.message}`);
       await wait(2000);
     }
