@@ -41,7 +41,8 @@ export async function pollDatabase() {
 
 export async function processQueue() {
   if (isProcessing || processingQueue.length === 0) {
-    return setTimeout(processQueue, pollInterval);
+    processQueueTimeout = setTimeout(processQueue, pollInterval);
+    return;
   }
 
   isProcessing = true;
