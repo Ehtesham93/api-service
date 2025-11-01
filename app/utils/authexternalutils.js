@@ -32,7 +32,14 @@ export async function pollDatabase() {
       pollInterval = 5 * 1000;
     }
     if (onboardingData.data) {
-      processingQueue.push(onboardingData.data);
+      const alreadyQueued = processingQueue.some(
+        item => item.vinno === onboardingData.data.vinno && 
+                item.mobileno === onboardingData.data.mobileno
+      );
+      if (!alreadyQueued) {
+        processingQueue.push(onboardingData.data);
+        onboardingLogger.info(`Queue add: ${onboardingData.data.vinno}, size: ${processingQueue.length}`);
+      }
     }
   } catch (err) {
     onboardingLogger.error('Error polling database:', err);
