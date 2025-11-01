@@ -69,7 +69,7 @@ if(!config.logToConsole){
 swaggerDocs(App.app);
 
 // Initialize service module database and start polling if enabled
-initializeServiceModDB(serviceModSvcI, config);
+initializeServiceModDB(serviceModSvcI, config, logger);
 
 // Start polling for service onboarding if enabled in configuration
 if (config.enableServiceOnboarding) {

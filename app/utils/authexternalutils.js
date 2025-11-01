@@ -7,10 +7,12 @@ let pollDatabaseTimeout = null;
 let processQueueTimeout = null;
 let pollProcessQueueTimeout = null;
 let pollInterval = 1000;
+let onboardingLogger = null;
 
-export function initializeServiceModDB(svcinstance, configinstance) {
+export function initializeServiceModDB(svcinstance, configinstance, logger) {
     serviceModSvcI = svcinstance;
     config = configinstance;
+    onboardingLogger = logger;
 }
 
 
@@ -33,7 +35,7 @@ export async function pollDatabase() {
       processingQueue.push(onboardingData.data);
     }
   } catch (err) {
-    console.error('Error polling database:', err);
+    onboardingLogger.error('Error polling database:', err);
   } finally {
     pollDatabaseTimeout = setTimeout(pollDatabase, pollInterval);
   }
@@ -47,7 +49,7 @@ export async function processQueue() {
 
   isProcessing = true;
   const onboardingData = processingQueue.shift();
-  console.log(`Starting onboarding for muserid ${onboardingData.muserid}`);
+  onboardingLogger.info(`Starting onboarding for muserid ${onboardingData.muserid}`);
 
   while (true) {
     let txclient = null;
@@ -87,7 +89,7 @@ export async function processQueue() {
       if (txclient) {
         await serviceModSvcI.RollbackTransaction(txclient);
       }
-      console.log(`Retrying in 5s for muserid ${onboardingData.muserid} reason ${err?.message || err.response?.data?.message}`);
+      onboardingLogger.info(`Retrying in 5s for muserid ${onboardingData.muserid} reason ${err?.message || err.response?.data?.message}`);
       await wait(2000);
     }
   }
