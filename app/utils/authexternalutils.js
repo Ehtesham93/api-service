@@ -7,10 +7,12 @@ let pollDatabaseTimeout = null;
 let processQueueTimeout = null;
 let pollProcessQueueTimeout = null;
 let pollInterval = 1000;
+let onboardingLogger = null;
 
-export function initializeServiceModDB(svcinstance, configinstance) {
+export function initializeServiceModDB(svcinstance, configinstance, logger) {
     serviceModSvcI = svcinstance;
     config = configinstance;
+    onboardingLogger = logger;
 }
 
 
@@ -30,10 +32,17 @@ export async function pollDatabase() {
       pollInterval = 5 * 1000;
     }
     if (onboardingData.data) {
-      processingQueue.push(onboardingData.data);
+      const alreadyQueued = processingQueue.some(
+        item => item.vinno === onboardingData.data.vinno && 
+                item.mobileno === onboardingData.data.mobileno
+      );
+      if (!alreadyQueued) {
+        processingQueue.push(onboardingData.data);
+        onboardingLogger.info(`Queue add: ${onboardingData.data.vinno}, size: ${processingQueue.length}`);
+      }
     }
   } catch (err) {
-    console.error('Error polling database:', err);
+    onboardingLogger.error('Error polling database:', err);
   } finally {
     pollDatabaseTimeout = setTimeout(pollDatabase, pollInterval);
   }
@@ -41,14 +50,16 @@ export async function pollDatabase() {
 
 export async function processQueue() {
   if (isProcessing || processingQueue.length === 0) {
-    return setTimeout(processQueue, pollInterval);
+    processQueueTimeout = setTimeout(processQueue, pollInterval);
+    return;
   }
 
   isProcessing = true;
-  const onboardingData = processingQueue.shift();
-  console.log(`Starting onboarding for muserid ${onboardingData.muserid}`);
+  const onboardingData = processingQueue[0];
+  onboardingLogger.info(`Starting onboarding for muserid ${onboardingData.muserid}`);
 
   while (true) {
+    let txclient = null;
     try {
       const vehicleDetails = await serviceModSvcI.GetSingleVehicleDetail(onboardingData.vinno);
       let model = getADCModel(vehicleDetails[0].modeldisplayname);
@@ -68,22 +79,26 @@ export async function processQueue() {
       }
       const result = await callAuthExternalAPI(onboardingObj);
 
-      const txclient = await serviceModSvcI.StartTransaction();
+      txclient = await serviceModSvcI.StartTransaction();
       if (result.status === 'success') {
         await serviceModSvcI.DeleteOnboardingPendingQueue(txclient, onboardingData.vinno, onboardingData.mobileno);
         await serviceModSvcI.UpdateVehicleMobileno(txclient, onboardingData.vinno, onboardingObj.mobileNumber);
         await serviceModSvcI.MarkVehicleOnboarded(txclient, onboardingData.vinno, onboardingObj.mobileNumber, onboardingObj.userId, result.response);
         await serviceModSvcI.CommitTransaction(txclient);
+        processingQueue.shift();
         break;
       } else if (result.status === 'error') {
         await serviceModSvcI.DeleteOnboardingPendingQueue(txclient, onboardingData.vinno, onboardingData.mobileno);
         await serviceModSvcI.MoveToErrorTable(txclient, {...onboardingObj, vinno: onboardingData.vinno }, result.errorData);
         await serviceModSvcI.CommitTransaction(txclient);
+        processingQueue.shift();
         break;
       }
     } catch (err) {
-      await serviceModSvcI.RollbackTransaction(txclient);
-      console.log(`Retrying in 5s for muserid ${onboardingData.muserid} reason ${err?.message || err.response?.data?.message}`);
+      if (txclient) {
+        await serviceModSvcI.RollbackTransaction(txclient);
+      }
+      onboardingLogger.info(`Retrying in 5s for muserid ${onboardingData.muserid} reason ${err?.message || err.response?.data?.message}`);
       await wait(2000);
     }
   }
