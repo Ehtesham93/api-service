@@ -387,7 +387,7 @@ export function getPreviousBookingStatus(activeBooking, vinno) {
 }
 
 export function getADCModel(modelDisplayName) {
-    const treoModelDisplayName = ["treo cart", "treo grand", "treo zor", "treo yaari", "treo", "treo plus"];
+    const treoModelDisplayName = ["treo cart", "treo grand", "treo zor", "treo yaari", "treo", "treo plus", "zor grand"];
     const zeoModelDisplayName = ["mahindra zeo", "zeo"];
     if (modelDisplayName && treoModelDisplayName.includes(modelDisplayName.toLowerCase()))
         return "TREO"
