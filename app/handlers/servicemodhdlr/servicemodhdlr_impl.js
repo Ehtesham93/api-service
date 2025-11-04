@@ -1159,19 +1159,6 @@ export default class ServiceHdlrImpl {
                     }
                 }
             }
-
-            const mobileNumber = await this.GetMobileNumberLogic(vinno);
-            if (!mobileNumber) {
-                throw {
-                    errcode: 'MOBILE_NUMBER_NOT_FOUND',
-                };
-            }
-            const chassisNumber = utils.getChassisNumber(vinno);
-            if (!chassisNumber) {
-                throw {
-                    errcode: 'INVALID_VIN_NUMBER',
-                };
-            }
             let vehicleTelematics = null;
             let vehicleModelInfo = null;
             let vehicleLastServiceInfo = null;

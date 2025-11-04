@@ -174,7 +174,7 @@ const userFriendlyErrorMessages = {
     },
     PERMISSION_DENIED: {
         code: 'PERMISSION_DENIED',
-        message: "You do not have permission to access service module.",
+        message: "You do not have permission to access this resource.",
         ResponseFn: APIResponseForbidden
     },
     MODULE_NOT_FOUND: {

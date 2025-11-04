@@ -49,7 +49,7 @@ export default class Wrapper {
             this.logger.error('Error in getAuthToken', error.toString());
             throw {
                 errcode: 'INTERNAL_SERVER_ERROR',
-                errmsg: error?.response?.data?.message || 'We are facing issue with the following vehicle . Please try again after sometime.'
+                errmsg: error?.response?.data?.message || 'VIN not onboarded to Service Module.'
             };
         }
     }
