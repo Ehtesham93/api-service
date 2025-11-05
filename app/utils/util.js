@@ -417,3 +417,16 @@ export function checkUserPerms(userPermissions, requiredPermissions, mode = "any
       return requiredPermissions.some((perm) => userPermissions.includes(perm));
     }
 }
+
+export function validateWholeIntLatLng(latitude, longitude) {
+    const isLatitudeWholeInteger = Number.isInteger(latitude);
+    const isLongitudeWholeInteger = Number.isInteger(longitude);
+    if (isLatitudeWholeInteger) {
+        latitude = latitude + 0.000001;
+    }
+
+    if (isLongitudeWholeInteger) {
+        longitude = longitude + 0.000001;
+    }
+    return [latitude, longitude];
+}
