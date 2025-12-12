@@ -207,13 +207,15 @@ export function getChassisNumber(vinno) {
 // Format date to DD MMM YYYY format in IST timezone
 export function dateFormatter(date) {
     if (!isNaN(date)) {
-        const day = date.getDate().toString().padStart(2, '0');
-        const month = date.toLocaleDateString('en-GB', {
+        const formatter = new Intl.DateTimeFormat('en-GB', {
             timeZone: 'Asia/Kolkata',
+            year: 'numeric',
             month: 'short',
+            day: '2-digit',
         });
-        const year = date.getFullYear();
-        return `${day} ${month} ${year}`;
+        const parts = formatter.formatToParts(date);
+        const map = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+        return `${map.day} ${map.month} ${map.year}`;
     }
     return null;
 }
@@ -387,7 +389,7 @@ export function getPreviousBookingStatus(activeBooking, vinno) {
 }
 
 export function getADCModel(modelDisplayName) {
-    const treoModelDisplayName = ["treo cart", "treo grand", "treo zor", "treo yaari", "treo", "treo plus", "zor grand"];
+    const treoModelDisplayName = ["treo cart", "treo grand", "treo zor", "treo yaari", "treo", "treo plus"];
     const zeoModelDisplayName = ["mahindra zeo", "zeo"];
     if (modelDisplayName && treoModelDisplayName.includes(modelDisplayName.toLowerCase()))
         return "TREO"
@@ -416,17 +418,4 @@ export function checkUserPerms(userPermissions, requiredPermissions, mode = "any
     } else {
       return requiredPermissions.some((perm) => userPermissions.includes(perm));
     }
-}
-
-export function validateWholeIntLatLng(latitude, longitude) {
-    const isLatitudeWholeInteger = Number.isInteger(latitude);
-    const isLongitudeWholeInteger = Number.isInteger(longitude);
-    if (isLatitudeWholeInteger) {
-        latitude = latitude + 0.000001;
-    }
-
-    if (isLongitudeWholeInteger) {
-        longitude = longitude + 0.000001;
-    }
-    return [latitude, longitude];
 }

@@ -24,6 +24,9 @@ export default class PgPool {
       min: 2,
       max: 5,
       statement_timeout: 30 * 1000,
+      ssl: {
+        rejectUnauthorized: false,
+      }
     });
     this.Pool.on("connect", (client) => {
       client.query("SET search_path TO " + pgcfg.schema + ",public");

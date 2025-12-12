@@ -1513,7 +1513,6 @@ export default class ServiceHdlrImpl {
 
     ListNearestDealersSearchLogic = async (accountId, userId, latitude, longitude) => {
         try {
-            [latitude, longitude] = utils.validateWholeIntLatLng(latitude, longitude);
             const token = await this.getMAuthToken(this.config.hardCodeData.vinno, this.config.hardCodeData.mobileNumber);
             const listnearestdealersreqdata = {
                 modelGroupDesc: 'TREO',
