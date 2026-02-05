@@ -148,11 +148,29 @@ async function callAuthExternalAPI(onboardingData) {
   }
 }
 
+async function updatePendingQueueTable() {
+    try{
+      const processingstaterequest = await serviceModSvcI.FetchProcessingStateEntries();
+      this.logger.info("Total pending onboarding request older than 1hr in the queue with status PROCESSING", processingstaterequest);
+      if(processingstaterequest > 0){
+        const updatetopending = await serviceModSvcI.UpdateEntriesToPending();
+        this.logger.info("Total Updated status to PENDING = ", updatetopending.length);
+      }
+    }catch(error){
+      throw error;
+    }
+}
 export function startPolling() {
     pollProcessQueueTimeout = setTimeout(() => {
       pollDatabase();
       processQueue();
     }, 5000);
+}
+
+export function updatePendingQueue(){
+   UpdateQueueTimeout = setTimeout(() =>{
+     updatePendingQueueTable();
+   }, 3600000);
 }
 
 export function stopPolling() {

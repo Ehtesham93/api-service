@@ -18,6 +18,8 @@ export default class ServiceModHdlr {
         router.post('/settoken', this.setToken);
         //vehicle onboarding - allows vehicles to be onboarded to the service system
         router.post('/vehicle/onboarding', this.VehicleOnboarding);
+        router.get('/vehicle/:vinno/onboarding/status', this.GetOnboardingStatus);
+        router.get('/vehicle/:vinno/onboarding/history', this.GetOnboardingHistory);
 
         // Apply authentication middleware to all routes below this point
         router.use(AuthenticateAccountTokenFromCookie);
@@ -115,7 +117,40 @@ export default class ServiceModHdlr {
             const result = await this.serviceModHdlrI.VehicleOnboardingLogic(vinno, mobileno);
             APIResponseOK(req, res, "vehicle onboarding request submitted successfully", result);
         } catch (error) {
-            this.handleError(req, res, error);
+            this.logger.error("VehicleOnboarding error: ", error);
+            if (error.errcode === "INPUT_ERROR") {
+                APIResponseBadRequest(
+                req,
+                res,
+                "INPUT_ERROR",
+                error.errdata,
+                error.message
+                );
+            } else if (error.errcode === "VEHICLE_ONBOARDING_IN_PROCESS") {
+                APIResponseBadRequest(
+                req,
+                res,
+                error.errcode,
+                error.errdata,
+                "Vehicle onboarding already in process with the given mobile number"
+                );
+            } else if (error.errcode === "VEHICLE_ALREADY_ONBOARDED") {
+                APIResponseBadRequest(
+                req,
+                res,
+                error.errcode,
+                error.errdata,
+                "Vehicle already onboarded with the given mobile number"
+                );
+            }else {
+                APIResponseInternalErr(
+                req,
+                res,
+                "FAILED_ONBOARDING_VEHICLE",
+                {},
+                "Failed to onbaord vehicle"
+                );
+            }
         }
     };
 
@@ -695,5 +730,93 @@ export default class ServiceModHdlr {
         REPAIR: 'repair_lmm_cv',
         ACCIDENTAL: 'accidental_lmm_cv',
         SCHEDULED: 'scheduled_lmm_cv',
+    };
+
+    // Handler for vehicle onboarding status to the service system
+    GetOnboardingStatus = async (req, res, next) => {
+        try {
+            // Define validation schema for vehicle onboarding input
+            const schema = z.object({
+                vinno: z
+                    .string({ message: 'Invalid vinno parameter, must be a string' })
+                    .length(17, 'Invalid VIN number must be 17 characters long')
+                    .regex(/^[A-Za-z0-9](?:[A-Za-z0-9 ]*[A-Za-z0-9])?$/, "VIN must contain only letters, numbers, and spaces, and must not start or end with a space"),
+            });
+            const vinno = req.params.vinno;
+            this.validateAllInputs(schema, { vinno });
+            const result = await this.serviceModHdlrI.VehicleOnboardingStatusLogic(vinno);
+            APIResponseOK(req, res, result,"vehicle onboarding status fetched successfully");
+        } catch (error) {
+            this.logger.error("GetVehicleOnboardingStatus error: ", error);
+            if (error.errcode === "INPUT_ERROR") {
+                APIResponseBadRequest(
+                req,
+                res,
+                "INPUT_ERROR",
+                error.errdata,
+                error.message
+                );
+            } else if (error.errcode === "VEHICLE_NOT_FOUND") {
+                APIResponseBadRequest(
+                req,
+                res,
+                error.errcode,
+                error.errdata,
+                "Vehicle not found"
+                );
+            } else {
+                APIResponseInternalErr(
+                req,
+                res,
+                "FAILED_TO_GET_VEHICLE_ONBOARDING_STATUS",
+                {},
+                "Failed to vehicle onbaording status"
+                );
+            }
+        }
+    };
+
+    // Handler for vehicle onboarding status history to the service system
+    GetOnboardingHistory = async (req, res, next) => {
+        try {
+            // Define validation schema for vehicle onboarding input
+            const schema = z.object({
+                vinno: z
+                    .string({ message: 'Invalid vinno parameter, must be a string' })
+                    .length(17, 'Invalid VIN number must be 17 characters long')
+                    .regex(/^[A-Za-z0-9](?:[A-Za-z0-9 ]*[A-Za-z0-9])?$/, "VIN must contain only letters, numbers, and spaces, and must not start or end with a space"),
+            });
+            const vinno = req.params.vinno;
+            this.validateAllInputs(schema, { vinno });
+            const result = await this.serviceModHdlrI.VehicleOnboardingHistoryLogic(vinno);
+            APIResponseOK(req, res, result,"vehicle onboarding history fetched successfully");
+        } catch (error) {
+            this.logger.error("GetVehicleOnboardingHistory error: ", error);
+            if (error.errcode === "INPUT_ERROR") {
+                APIResponseBadRequest(
+                req,
+                res,
+                "INPUT_ERROR",
+                error.errdata,
+                error.message
+                );
+            } else if (error.errcode === "VEHICLE_NOT_FOUND") {
+                APIResponseBadRequest(
+                req,
+                res,
+                error.errcode,
+                error.errdata,
+                "Vehicle not found"
+                );
+            } else {
+                APIResponseInternalErr(
+                req,
+                res,
+                "FAILED_TO_GET_VEHICLE_ONBOARDING_HISTORY",
+                {},
+                "Failed to vehicle onbaording status history"
+                );
+            }
+        }
     };
 }

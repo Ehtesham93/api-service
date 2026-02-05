@@ -4,12 +4,12 @@ SELECT
 SHOW search_path;
 
 -- Create sequences first
-CREATE SEQUENCE sos_reasons_id_seq;
-CREATE SEQUENCE service_kilometers_id_seq;
-CREATE SEQUENCE cancel_reasons_id_seq;
-CREATE SEQUENCE dealer_slots_id_seq;
+CREATE SEQUENCE IF NOT EXISTS sos_reasons_id_seq;
+CREATE SEQUENCE IF NOT EXISTS service_kilometers_id_seq;
+CREATE SEQUENCE IF NOT EXISTS cancel_reasons_id_seq;
+CREATE SEQUENCE IF NOT EXISTS dealer_slots_id_seq;
 
-CREATE TABLE active_service_booking
+CREATE TABLE IF NOT EXISTS active_service_booking
 (
     vinno TEXT NOT NULL,
     bookingtime TIMESTAMPTZ NOT NULL,
@@ -34,7 +34,7 @@ CREATE TABLE active_service_booking
 
 
 
-CREATE TABLE service_booking_log
+CREATE TABLE IF NOT EXISTS service_booking_log
 (
     vinno TEXT NOT NULL,
     requestid UUID NOT NULL,
@@ -47,12 +47,12 @@ CREATE TABLE service_booking_log
     FOREIGN KEY (updatedby) REFERENCES prodfmscoresch.users (userid)
 );
 
-CREATE INDEX idx_service_booking_log_requestid ON service_booking_log (requestid);
+CREATE INDEX IF NOT EXISTS idx_service_booking_log_requestid ON service_booking_log (requestid);
 
 
 
 
-CREATE TABLE service_done_history (
+CREATE TABLE IF NOT EXISTS service_done_history (
     vinno TEXT,
     bookingtime TIMESTAMPTZ,
     requestid UUID,
@@ -80,7 +80,7 @@ CREATE TABLE service_done_history (
 );
 
 
-CREATE TABLE account_booking_history (
+CREATE TABLE IF NOT EXISTS account_booking_history (
     accountid UUID NOT NULL,
     fleetid UUID NOT NULL,
     vinno TEXT NOT NULL,
@@ -92,11 +92,11 @@ CREATE TABLE account_booking_history (
     FOREIGN KEY (accountid) REFERENCES prodfmscoresch.account (accountid)
 );
 
-CREATE INDEX idx_account_booking_history_vinno ON account_booking_history (vinno);
+CREATE INDEX IF NOT EXISTS idx_account_booking_history_vinno ON account_booking_history (vinno);
 
 
 
-CREATE TABLE adc_service_api_log (
+CREATE TABLE IF NOT EXISTS adc_service_api_log (
     vinno TEXT NOT NULL,
     requesttime TIMESTAMPTZ DEFAULT now(),
     endpoint TEXT NOT NULL,
@@ -107,12 +107,12 @@ CREATE TABLE adc_service_api_log (
     PRIMARY KEY (vinno, requesttime)
 );
 
-CREATE INDEX idx_adc_service_api_log_endpoint ON adc_service_api_log (endpoint);
+CREATE INDEX IF NOT EXISTS idx_adc_service_api_log_endpoint ON adc_service_api_log (endpoint);
 
 
 
 
-CREATE TABLE sos_reason (
+CREATE TABLE IF NOT EXISTS sos_reason (
     id INTEGER NOT NULL DEFAULT nextval('sos_reasons_id_seq'::regclass),
     sosid INTEGER NOT NULL,
     name TEXT NOT NULL,
@@ -122,27 +122,29 @@ CREATE TABLE sos_reason (
 
 
 
-CREATE TABLE service_kilometer (
+CREATE TABLE IF NOT EXISTS service_kilometer (
     id INTEGER NOT NULL DEFAULT nextval('service_kilometers_id_seq'::regclass),
     kilometer INTEGER NOT NULL,
     PRIMARY KEY (id)
 );
 
 
-CREATE TABLE servicesch.onboarding_pending_queue (
+CREATE TABLE IF NOT EXISTS onboarding_pending_queue (
     vinno TEXT NOT NULL,
     mobileno TEXT NOT NULL,
     muserid TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'PENDING',
     createdat TIMESTAMPTZ DEFAULT now(),
+    updatedat TIMESTAMPTZ DEFAULT now(),
     PRIMARY KEY (vinno)
 );
 
-CREATE INDEX onboarding_pending_queue_mobileno_idx ON servicesch.onboarding_pending_queue (mobileno);
+CREATE INDEX IF NOT EXISTS onboarding_pending_queue_mobileno_idx ON onboarding_pending_queue (mobileno);
 
 
 
 
-CREATE TABLE servicesch.onboarding_done (
+CREATE TABLE IF NOT EXISTS onboarding_done (
     vinno TEXT NOT NULL,
     mobileno TEXT NOT NULL,
     muserid TEXT NOT NULL,
@@ -151,10 +153,10 @@ CREATE TABLE servicesch.onboarding_done (
     PRIMARY KEY (vinno, createdat)
 );
 
-CREATE INDEX onboarding_done_mobileno_idx ON servicesch.onboarding_done (mobileno);
+CREATE INDEX IF NOT EXISTS onboarding_done_mobileno_idx ON onboarding_done (mobileno);
 
 
-CREATE TABLE servicesch.onboarding_error (
+CREATE TABLE IF NOT EXISTS onboarding_error (
     vinno TEXT NOT NULL,
     mobileno TEXT NOT NULL,
     muserid TEXT NOT NULL,
@@ -164,11 +166,11 @@ CREATE TABLE servicesch.onboarding_error (
     PRIMARY KEY (vinno, createdat)
 );
 
-CREATE INDEX onboarding_error_mobileno_idx ON servicesch.onboarding_error (mobileno);
+CREATE INDEX IF NOT EXISTS onboarding_error_mobileno_idx ON onboarding_error (mobileno);
 
 
 
-CREATE TABLE cancel_reason (
+CREATE TABLE IF NOT EXISTS cancel_reason (
     id INTEGER NOT NULL DEFAULT nextval('cancel_reasons_id_seq'::regclass),
     cancellationid INTEGER,
     name TEXT NOT NULL,
@@ -178,7 +180,7 @@ CREATE TABLE cancel_reason (
 
 
 
-CREATE TABLE dealer_slot (
+CREATE TABLE IF NOT EXISTS dealer_slot (
     id INTEGER NOT NULL DEFAULT nextval('dealer_slots_id_seq'::regclass),
     slots TEXT NOT NULL,
     slotoffset INTEGER,
@@ -187,7 +189,7 @@ CREATE TABLE dealer_slot (
 );
 
 
-CREATE TABLE servicetype (
+CREATE TABLE IF NOT EXISTS servicetype (
     id TEXT NOT NULL,
     description TEXT,
     CONSTRAINT servicetypes_pkey PRIMARY KEY (id)

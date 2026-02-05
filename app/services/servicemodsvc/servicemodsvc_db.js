@@ -3,6 +3,8 @@ export default class ServiceModSvcDB {
         this.pgPoolI = pgPoolI;
         this.logger = logger;
         this.config = config;
+        this.SERVICE_ONBOARDING_STATUS_PENDING ='PENDING';
+        this.SERVICE_ONBOARDING_STATUS_PROCESSING ='PROCESSING';
     }
 
     async startTransaction() {
@@ -117,13 +119,27 @@ export default class ServiceModSvcDB {
         }
     }
 
+    async getOnboardingDoneEntries(vinno, mobileno) {
+        try {
+            const query = `SELECT 
+                                    vinno,
+                                    mobileno
+                                FROM ${this.config.schemas.service}.onboarding_done 
+                                WHERE vinno = $1 AND mobileno = $2;`;
+            const result = await this.pgPoolI.Query(query, [vinno, mobileno]);
+            return result.rowCount > 0;
+        } catch (error) {
+            throw error;
+        }
+    }
+
     // I can do an upsert here, when conflict happens, update the mobileno and muserid but i ll go with the insert and update approach for now
     async createOnboardingPendingQueue(vinno, mobileno) {
         try {
             const query = `INSERT INTO ${this.config.schemas.service}.onboarding_pending_queue 
-                            (vinno, mobileno, muserid)
-                            VALUES ($1, $2, $3);`;
-            await this.pgPoolI.Query(query, [vinno, mobileno, `NEMO3.0-ADC-USERID-${mobileno}`]);
+                            (vinno, mobileno, muserid, status, createdat, updatedat)
+                            VALUES ($1, $2, $3, $4, now(), now());`;
+            await this.pgPoolI.Query(query, [vinno, mobileno, `NEMO3.0-ADC-USERID-${mobileno}`, this.SERVICE_ONBOARDING_STATUS_PENDING]);
             return;
         } catch (error) {
             throw error;
@@ -132,7 +148,7 @@ export default class ServiceModSvcDB {
 
     async updateOnboardingPendingQueue(vinno, mobileno) {
         try {
-            const query = `UPDATE ${this.config.schemas.service}.onboarding_pending_queue SET mobileno = $1, muserid = $2 WHERE vinno = $3`;
+            const query = `UPDATE ${this.config.schemas.service}.onboarding_pending_queue SET mobileno = $1, muserid = $2, updatedat = now() WHERE vinno = $3`;
             await this.pgPoolI.Query(query, [mobileno, `NEMO3.0-ADC-USERID-${mobileno}`, vinno]);
         } catch (error) {
             throw error;
@@ -159,16 +175,21 @@ export default class ServiceModSvcDB {
 
     async fetchPendingVehicleOnboarding() {
         try {
-            let query = `SELECT count(*) as total FROM ${this.config.schemas.service}.onboarding_pending_queue`;
-            const totalPendingOnboards = await this.pgPoolI.Query(query);
+            let query = `SELECT count(*) as total FROM ${this.config.schemas.service}.onboarding_pending_queue WHERE status = $1`;
+            const totalPendingOnboards = await this.pgPoolI.Query(query, [this.SERVICE_ONBOARDING_STATUS_PENDING]);
 
             if (totalPendingOnboards.rows[0].total === 0) {
                 return { data: null, total: 0 };
             }
 
-            query = `SELECT vinno, mobileno, muserid FROM ${this.config.schemas.service}.onboarding_pending_queue ORDER BY createdat LIMIT 1`;
-            const pendingOnboards = await this.pgPoolI.Query(query);
-            return { data: pendingOnboards.rows[0], total: totalPendingOnboards.rows[0].total };
+            // query = `SELECT vinno, mobileno, muserid FROM ${this.config.schemas.service}.onboarding_pending_queue WHERE status = 'PENDING_FOR_SCHEDULING' ORDER BY updatedat LIMIT 1`;
+            // const pendingOnboards = await this.pgPoolI.Query(query);
+
+            query = `UPDATE ${this.config.schemas.service}.onboarding_pending_queue SET status=$1, updatedat = now()
+                    WHERE vinno = (SELECT vinno FROM ${this.config.schemas.service}.onboarding_pending_queue WHERE status = $2 ORDER BY updatedat LIMIT 1)
+                    RETURNING vinno, mobileno, muserid`;
+            let result = await this.pgPoolI.Query(query, [this.SERVICE_ONBOARDING_STATUS_PROCESSING, this.SERVICE_ONBOARDING_STATUS_PENDING]);
+            return { data: result.rows[0], total: totalPendingOnboards.rows[0].total };
         } catch (err) {
             this.logger.error('Error in fetchPendingVehicleOnboarding: ', err);
             throw 'Fetch pending vehicle to onboard failed, please try again later.';
@@ -667,11 +688,167 @@ export default class ServiceModSvcDB {
 
     async getServiceModuleDetails() {
         try {
-            const query = `SELECT moduleid FROM ${this.config.schemas.fmscoresch}.module where modulecode = $1;`;
+            const query = `SELECT moduleid FROM ${this.config.schemas.fmscoresch}.module WHERE modulecode = $1;`;
             const result = await this.pgPoolI.Query(query, ['service']);
             return result.rows;
         } catch (error) {
             this.logger.error('Error in getServiceModuleDetails: ', error.toString());
+            throw error;
+        }
+    }
+
+    async getVehicleOnboardingHistory(vinno) {
+        try {
+            const vehiclevaliditycheck = `SELECT * FROM  ${this.config.schemas.fmscoresch}.vehicle WHERE vinno = $1`;
+            const validate = await this.pgPoolI.Query(vehiclevaliditycheck, [vinno]);
+            if(validate.rowCount !== 1 ){
+                let error = new Error("Vehicle not found");
+                error.errcode = "VEHICLE_NOT_FOUND";
+                throw error;
+            }
+
+            const successstatusquery = `SELECT * FROM ${this.config.schemas.service}.onboarding_done WHERE vinno = $1`;
+            const successstatus = await this.pgPoolI.Query(successstatusquery, [vinno]);
+
+            const failedstatusquery = `SELECT * FROM ${this.config.schemas.service}.onboarding_error WHERE vinno = $1`;
+            const failedstatus = await this.pgPoolI.Query(failedstatusquery, [vinno]);
+
+            return {
+                "success": successstatus.rows,
+                "failed": failedstatus.rows
+            };
+        } catch (error) {
+            this.logger.error('Error in getVehicleOnboardingHistory', error);
+            throw error;
+        }
+    }
+
+
+    async getVehicleOnboardingStatus(vinno) {
+        try {
+          const vehiclevaliditycheck = `
+            SELECT 1
+            FROM ${this.config.schemas.fmscoresch}.vehicle
+            WHERE vinno = $1
+          `;
+          const validate = await this.pgPoolI.Query(vehiclevaliditycheck, [vinno]);
+      
+          if (validate.rowCount !== 1) {
+            const error = new Error("Vehicle not found");
+            error.errcode = "VEHICLE_NOT_FOUND";
+            throw error;
+          }
+      
+          const [successstatus, pendingstatus, failedstatus] = await Promise.all([
+            this.pgPoolI.Query(
+              `SELECT *, createdat AS ts
+               FROM ${this.config.schemas.service}.onboarding_done
+               WHERE vinno = $1
+               ORDER BY createdat DESC
+               LIMIT 1`,
+              [vinno]
+            ),
+            this.pgPoolI.Query(
+              `SELECT *, updatedat AS ts
+               FROM ${this.config.schemas.service}.onboarding_pending_queue
+               WHERE vinno = $1
+               ORDER BY updatedat DESC
+               LIMIT 1`,
+              [vinno]
+            ),
+            this.pgPoolI.Query(
+              `SELECT *, createdat AS ts
+               FROM ${this.config.schemas.service}.onboarding_error
+               WHERE vinno = $1
+               ORDER BY createdat DESC
+               LIMIT 1`,
+              [vinno]
+            ),
+          ]);
+      
+          const candidates = [];
+      
+          if (pendingstatus.rowCount > 0) {
+            candidates.push({
+              type: pendingstatus.rows[0].status,
+              row: pendingstatus.rows[0],
+              ts: pendingstatus.rows[0].updatedat,
+            });
+          }
+      
+          if (successstatus.rowCount > 0) {
+            candidates.push({
+              type: "SUCCESS",
+              row: successstatus.rows[0],
+              ts: successstatus.rows[0].createdat,
+            });
+          }
+      
+          if (failedstatus.rowCount > 0) {
+            candidates.push({
+              type: "FAILED",
+              row: failedstatus.rows[0],
+              ts: failedstatus.rows[0].createdat,
+            });
+          }
+      
+          if (candidates.length === 0) {
+            return {
+              status: "NODATA",
+              data: null,
+              allowupdate: true,
+            };
+          }
+      
+          const latest = candidates.reduce((a, b) => (a.ts > b.ts ? a : b));
+      
+          let allowupdate = true;
+          if (
+            latest.type === this.SERVICE_ONBOARDING_STATUS_PROCESSING
+          ) {
+            allowupdate = false;
+          }
+
+          if (!latest.row.updatedat) {
+            latest.row.updatedat = latest.row.createdat;
+          }
+          
+          if (latest.row.ts) {
+            delete latest.row.ts;
+          }
+      
+          return {
+            status: latest.type,
+            data: latest.row,
+            allowupdate,
+          };
+        } catch (error) {
+          this.logger.error("Error in getVehicleOnboardingStatus", error);
+          throw error;
+        }
+      }
+      
+
+    async fetchProcessingStateEntries(){
+        try{
+            let query = `SELECT vinno as total FROM ${this.config.schemas.service}.onboarding_pending_queue WHERE status = $1 AND updatedat < NOW() - INTERVAL '1 hour'`;
+            const result = await this.pgPoolI.Query(query, [this.SERVICE_ONBOARDING_STATUS_PROCESSING]);
+            return result.rowCount;
+        }catch(error){
+            this.logger.error('Error in fetchProcessingStateEntries', error);
+            throw error;
+        }
+    }
+
+    async updateToPending(){
+        try{
+            let query = `UPDATE ${this.config.schemas.service}.onboarding_pending_queue SET status= $1, updatedat = NOW()
+                    WHERE vinno = (SELECT vinno FROM ${this.config.schemas.service}.onboarding_pending_queue WHERE status = $2 AND updatedat < NOW() - INTERVAL '1 hour')
+                    RETURNING vinno`;
+            const result = await this.pgPoolI.Query(query, [this.SERVICE_ONBOARDING_STATUS_PENDING, this.SERVICE_ONBOARDING_STATUS_PROCESSING]);
+            return result.rows;
+        }catch(error){
+            this.logger.error('Error in updateToPending', error);
             throw error;
         }
     }

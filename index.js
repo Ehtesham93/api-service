@@ -74,6 +74,7 @@ initializeServiceModDB(serviceModSvcI, config, logger);
 // Start polling for service onboarding if enabled in configuration
 if (config.enableServiceOnboarding) {
   startPolling();
+  updatePendingQueue();
 }
 
 // Start the API server on the configured port

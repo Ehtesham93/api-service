@@ -1,9 +1,9 @@
 import ServiceModSvcDB from './servicemodsvc_db.js';
 export default class ServiceModSvc {
-    constructor(pgPoolI, wrapperI, logger, config) {
+    constructor(pgPoolI, logger, config) {
         this.pgPoolI = pgPoolI;
         this.logger = logger;
-        this.serviceModSvcDB = new ServiceModSvcDB(pgPoolI, wrapperI, logger, config);
+        this.serviceModSvcDB = new ServiceModSvcDB(pgPoolI, logger, config);
     }
 
     // Database transaction management methods
@@ -54,6 +54,17 @@ export default class ServiceModSvc {
     async GetOnboardingPendingQueue(vinno) {
         try {
             return await this.serviceModSvcDB.getOnboardingPendingQueue(vinno);
+        } catch (error) {
+            throw {
+                errcode: 'INTERNAL_SERVER_ERROR',
+            };
+        }
+    }
+
+    // Vehicle onboarding queue management methods
+    async GetOnboardingDoneEntries(vinno, mobileno){
+        try {
+            return await this.serviceModSvcDB.getOnboardingDoneEntries(vinno, mobileno);
         } catch (error) {
             throw {
                 errcode: 'INTERNAL_SERVER_ERROR',
@@ -363,6 +374,91 @@ export default class ServiceModSvc {
             throw {
                 errcode: 'INTERNAL_SERVER_ERROR'
             }
+        }
+    }
+
+    async GetVehicleOnboardingHistory(vinno) {
+        try {
+            const status = await this.serviceModSvcDB.getVehicleOnboardingHistory(vinno);
+            let result = {};
+            let tablerows = [];
+            if(status.success.length > 0){
+                for(const row of status.success){
+                    if(!row.updatedat) {
+                        row.updatedat = row.createdat;
+                    }
+                    tablerows.push({
+                        ...row,
+                        status: 'SUCCESS',
+                    })
+                }
+            } 
+            if(status.failed.length > 0){
+                for(const row of status.failed){
+                    if(!row.updatedat) {
+                        row.updatedat = row.createdat;
+                    }
+                    tablerows.push({
+                        ...row,
+                        status: 'FAILED',
+                    })
+                }
+            } 
+            if(tablerows.length === 0){
+                return {
+                    "historydata": []
+                }
+            }
+            result = {
+                "historydata": tablerows
+            }
+            return result;
+        } catch (error) {
+            throw error;
+        }
+    }
+
+
+    async GetVehicleOnboardingStatus(vinno) {
+        try {
+            const status = await this.serviceModSvcDB.getVehicleOnboardingStatus(vinno);
+            let result = {};
+            let statusdata = [];
+            if(status.status === 'SUCCESS' || status.status === 'FAILED' || status.status === 'NODATA'){
+                statusdata.push({
+                    ...status.data,
+                    "status": status.status
+                });
+            }else {
+                statusdata.push({
+                    ...status.data
+                });
+            }
+
+            result = {
+                "statusdata": statusdata,
+                "allowupdate": status.allowupdate
+            }
+            return result;
+        } catch (error) {
+            throw error;
+        }
+    }
+
+
+    async FetchProcessingStateEntries(){
+        try{
+            return await this.serviceModSvcDB.fetchProcessingStateEntries();
+        }catch(error){
+            throw error;
+        }
+    }
+
+    async UpdateEntriesToPending(){
+        try{
+            return await this.serviceModSvcDB.updateToPending();
+        }catch(error){
+            throw error;
         }
     }
 }

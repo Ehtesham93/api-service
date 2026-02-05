@@ -11,15 +11,25 @@ export default class ServiceHdlrImpl {
 
     VehicleOnboardingLogic = async (vinno, mobileNo) => {
         try {
+            const onboardingdoneentries = await this.serviceModSvcI.GetOnboardingDoneEntries(vinno, mobileNo);
+            if(onboardingdoneentries){
+                let error = new Error("Vehicle already onboarded with the given mobile number");
+                error.errcode = "VEHICLE_ALREADY_ONBOARDED";
+                throw error;
+            }
             const onboardingQueue = await this.serviceModSvcI.GetOnboardingPendingQueue(vinno);
             if (onboardingQueue) {
+                if(onboardingQueue.mobileno === mobileNo){
+                    let error = new Error("Vehicle onboarding already in process with the given mobile number");
+                    error.errcode = "VEHICLE_ONBOARDING_IN_PROCESS";
+                    throw error;
+                }
                 await this.serviceModSvcI.UpdateOnboardingPendingQueue(vinno, mobileNo);
                 return 'Onboarding request updated successfully';
             }
             await this.serviceModSvcI.CreateOnboardingPendingQueue(vinno, mobileNo);
             return 'Onboarding request submitted successfully';
         } catch (error) {
-            error instanceof Error && this.logger.error('Error in VehicleOnboarding: ', error.toString());
             throw error;
         }
     };
@@ -2231,4 +2241,24 @@ export default class ServiceHdlrImpl {
             throw error;
         }
     }
+
+    VehicleOnboardingStatusLogic = async (vinno) => {
+        try {
+            const result = await this.serviceModSvcI.GetVehicleOnboardingStatus(vinno);
+            return result;
+        } catch (error) {
+            error instanceof Error && this.logger.error('Error in GetVehicleOnboardingStatus: ', error.toString());
+            throw error;
+        }
+    };
+
+    VehicleOnboardingHistoryLogic = async (vinno) => {
+        try {
+            const result = await this.serviceModSvcI.GetVehicleOnboardingHistory(vinno);
+            return result;
+        } catch (error) {
+            error instanceof Error && this.logger.error('Error in GetVehicleOnboardingHistory: ', error.toString());
+            throw error;
+        }
+    };
 }
