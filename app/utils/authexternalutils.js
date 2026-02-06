@@ -6,6 +6,7 @@ let config = null;
 let pollDatabaseTimeout = null;
 let processQueueTimeout = null;
 let pollProcessQueueTimeout = null;
+let UpdateQueueTimeout = null;
 let pollInterval = 1000;
 let onboardingLogger = null;
 

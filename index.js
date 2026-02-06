@@ -12,7 +12,7 @@ import Wrapper from "./app/utils/wrappers.js";
 import ServiceModSvc from "./app/services/servicemodsvc/servicemodsvc.js";
 import ServiceModHdlr from "./app/handlers/servicemodhdlr/servicemodhdlr.js";
 
-import { initializeServiceModDB, startPolling } from "./app/utils/authexternalutils.js";
+import { initializeServiceModDB, startPolling, updatePendingQueue } from "./app/utils/authexternalutils.js";
 
 import { Logger } from "./lib/nemo3-lib-observability/index.js";
 
