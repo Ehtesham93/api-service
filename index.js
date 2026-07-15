@@ -11,7 +11,7 @@ import Wrapper from "./app/utils/wrappers.js";
 
 import ServiceModSvc from "./app/services/servicemodsvc/servicemodsvc.js";
 import ServiceModHdlr from "./app/handlers/servicemodhdlr/servicemodhdlr.js";
-
+import ImpersonationLogUtil from "./app/utils/impersonationlogutil.js";
 import { initializeServiceModDB, startPolling, updatePendingQueue } from "./app/utils/authexternalutils.js";
 
 import { Logger } from "./lib/nemo3-lib-observability/index.js";
@@ -44,7 +44,8 @@ const healthSvcI = new HealthSvc();
 
 // 2. Handlers...
 const handlerloggerI = console;
-const serviceModHdlrI = new ServiceModHdlr(serviceModSvcI, wrapperI, servicelogger, config);
+let impersonationLogUtilI = new ImpersonationLogUtil(config, servicelogger);
+const serviceModHdlrI = new ServiceModHdlr(serviceModSvcI, wrapperI, servicelogger, config, impersonationLogUtilI);
 const healthHdlrI = new HealthHdlr(healthSvcI);
 
 const pathPrefix = config.pathPrefix;

@@ -34,7 +34,7 @@ export default class ServiceHdlrImpl {
         }
     };
 
-    GetServiceOverviewLogic = async (accountid, fleetid, userid, isRecursive, cookie, startDate) => {
+    GetServiceOverviewLogic = async (accountid, fleetid, userid, isRecursive, cookie, startDate, xplatform) => {
         try {
             // const isvalid = await this.UserFleetValidationLogic(accountid, userid, fleetid);
             // if (!isvalid) {
@@ -51,8 +51,8 @@ export default class ServiceHdlrImpl {
             }
 
             const moduleId = moduleDetails[0].moduleid;
-            const getMyServicePerms = await this.GetMyServicePermsLogic(fleetid, moduleId, cookie);
-            if (!getMyServicePerms.isAdmin) {
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+                const getMyServicePerms = await this.GetMyServicePermsLogic(fleetid, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.view', 'service.booking.admin']);
                 if (!hasPerm) {
@@ -115,7 +115,7 @@ export default class ServiceHdlrImpl {
         }
     };
 
-    GetVehiclesInServiceLogic = async (accountId, fleetId, userId, recursive, tabId = 'all', cookie, startDate) => {
+    GetVehiclesInServiceLogic = async (accountId, fleetId, userId, recursive, tabId = 'all', cookie, startDate, xplatform) => {
         try {
             // const isvalid = await this.UserFleetValidationLogic(accountId, userId, fleetId);
             // if (!isvalid) {
@@ -132,8 +132,8 @@ export default class ServiceHdlrImpl {
             }
 
             const moduleId = moduleDetails[0].moduleid;
-            const getMyServicePerms = await this.GetMyServicePermsLogic(fleetId, moduleId, cookie);
-            if (!getMyServicePerms.isAdmin) {
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+                const getMyServicePerms = await this.GetMyServicePermsLogic(fleetId, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.view', 'service.booking.admin']);
                 if (!hasPerm) {
@@ -206,7 +206,7 @@ export default class ServiceHdlrImpl {
         }
     };
 
-    ListDealersLogic = async (accountId, userId, vinno, latitude, longitude, modelDesc, cookie) => {
+    ListDealersLogic = async (accountId, userId, vinno, latitude, longitude, modelDesc, cookie, xplatform) => {
         try {
             const userFleets = await this.serviceModSvcI.GetUserFleets(accountId, userId);
             if (!userFleets || userFleets.length === 0) {
@@ -220,25 +220,6 @@ export default class ServiceHdlrImpl {
                     errcode: 'VEHICLE_FLEET_NOT_FOUND',
                 };
             }
-
-            // const moduleDetails = await this.serviceModSvcI.GetServiceModuleDetails();
-            // if (moduleDetails.length === 0) {
-            //     throw {
-            //         errcode: 'MODULE_NOT_FOUND'
-            //     };
-            // }
-
-            // const moduleId = moduleDetails[0].moduleid;
-            // const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie);
-            // if (!getMyServicePerms.isAdmin) {
-            //     const permList = getMyServicePerms.perms.map((perm) => perm.permid);
-            //     const hasPerm = utils.checkUserPerms(permList, ['service.booking.admin']);
-            //     if (!hasPerm) {
-            //         throw {
-            //             errcode: 'USER_DEALER_ACCESS_DENIED'
-            //         }
-            //     }
-            // }
 
             const mobileNumber = await this.GetMobileNumberLogic(vinno);
             if (!mobileNumber) {
@@ -283,7 +264,7 @@ export default class ServiceHdlrImpl {
         }
     };
 
-    GetDealerSlotsLogic = async (accountId, userId, vinno, epoch, cookie) => {
+    GetDealerSlotsLogic = async (accountId, userId, vinno, epoch, cookie, xplatform) => {
         try {
             const userFleets = await this.serviceModSvcI.GetUserFleets(accountId, userId);
             if (!userFleets || userFleets.length === 0) {
@@ -297,24 +278,6 @@ export default class ServiceHdlrImpl {
                     errcode: 'VEHICLE_FLEET_NOT_FOUND',
                 };
             }
-
-            // const moduleDetails = await this.serviceModSvcI.GetServiceModuleDetails();
-            // if (moduleDetails.length === 0) {
-            //     throw {
-            //         errcode: 'MODULE_NOT_FOUND'
-            //     };
-            // }
-            // const moduleId = moduleDetails[0].moduleid;
-            // const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie);
-            // if (!getMyServicePerms.isAdmin) {
-            //     const permList = getMyServicePerms.perms.map((perm) => perm.permid);
-            //     const hasPerm = utils.checkUserPerms(permList, ['service.booking.admin'], 'all');
-            //     if (!hasPerm) {
-            //         throw {
-            //             errcode: 'USER_DEALER_ACCESS_DENIED'
-            //         }
-            //     }
-            // }
 
             const mobileDetails = await this.serviceModSvcI.GetMobileNumber(vinno);
             const mobileNumber = mobileDetails[0].mobile;
@@ -357,7 +320,7 @@ export default class ServiceHdlrImpl {
         }
     };
 
-    CreateVehicleServiceBookingLogic = async (accountId, userId, vinno, serviceType, kilometer, parentGroup, locationCode, dealerName, dealerAddress, bookingTime, cookie) => {
+    CreateVehicleServiceBookingLogic = async (accountId, userId, vinno, serviceType, kilometer, parentGroup, locationCode, dealerName, dealerAddress, bookingTime, cookie, xplatform) => {
         let txclient = null;
         try {
             txclient = await this.serviceModSvcI.StartTransaction();
@@ -391,8 +354,8 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie);
-            if (!getMyServicePerms.isAdmin) {
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+                const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.admin'], 'all');
                 if (!hasPerm) {
@@ -513,7 +476,7 @@ export default class ServiceHdlrImpl {
         }
     };
 
-    GetVehicleServiceStatusLogic = async (accountId, userId, vinno, bookingId, cookie) => {
+    GetVehicleServiceStatusLogic = async (accountId, userId, vinno, bookingId, cookie, xplatform) => {
         let txclient = null;
         try {
             txclient = await this.serviceModSvcI.StartTransaction();
@@ -547,8 +510,8 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie);
-            if (!getMyServicePerms.isAdmin) {
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+                const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.view', 'service.booking.admin']);
                 if (!hasPerm) {
@@ -753,7 +716,8 @@ export default class ServiceHdlrImpl {
         newDealerName,
         newDealerAddress,
         newBookingTime,
-        cookie
+        cookie,
+        xplatform
     ) => {
         let txclient = null;
         try {
@@ -787,8 +751,8 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie);
-            if (!getMyServicePerms.isAdmin) {
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+                const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.admin'], 'all');
                 if (!hasPerm) {
@@ -944,7 +908,7 @@ export default class ServiceHdlrImpl {
         }
     };
 
-    CancelVehicleServiceBookingLogic = async (accountId, userId, bookingId, vinno, reason, cookie) => {
+    CancelVehicleServiceBookingLogic = async (accountId, userId, bookingId, vinno, reason, cookie, xplatform) => {
         let txclient = null;
         try {
             txclient = await this.serviceModSvcI.StartTransaction();
@@ -978,8 +942,8 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie);
-            if (!getMyServicePerms.isAdmin) {
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+                const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.admin'], 'all');
                 if (!hasPerm) {
@@ -1087,7 +1051,7 @@ export default class ServiceHdlrImpl {
         }
     };
 
-    GetVehicleServiceHistoryLogic = async (accountId, userId, vinno, cookie) => {
+    GetVehicleServiceHistoryLogic = async (accountId, userId, vinno, cookie, xplatform) => {
         try {
             const userFleets = await this.serviceModSvcI.GetUserFleets(accountId, userId);
             if (!userFleets || userFleets.length === 0) {
@@ -1109,8 +1073,8 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie);
-            if (!getMyServicePerms.isAdmin) {
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+                const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.view', 'service.booking.admin']);
                 if (!hasPerm) {
@@ -1137,7 +1101,7 @@ export default class ServiceHdlrImpl {
         }
     };
 
-    GetVehicleInfoLogic = async (accountId, userId, vinno, cookie) => {
+    GetVehicleInfoLogic = async (accountId, userId, vinno, cookie, xplatform) => {
         try {
             const userFleets = await this.serviceModSvcI.GetUserFleets(accountId, userId);
             if (!userFleets || userFleets.length === 0) {
@@ -1159,8 +1123,8 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie);
-            if (!getMyServicePerms.isAdmin) {
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+                const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.view', 'service.booking.admin']);
                 if (!hasPerm) {
@@ -1272,7 +1236,7 @@ export default class ServiceHdlrImpl {
         }
     };
 
-    GetInvoiceLogic = async (accountId, userId, vinno, bookingid, cookie) => {
+    GetInvoiceLogic = async (accountId, userId, vinno, bookingid, cookie, xplatform) => {
         try {
             const userFleets = await this.serviceModSvcI.GetUserFleets(accountId, userId);
             if (!userFleets || userFleets.length === 0) {
@@ -1294,8 +1258,8 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie);
-            if (!getMyServicePerms.isAdmin) {
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+                const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.view', 'service.booking.admin']);
                 if (!hasPerm) {
@@ -1356,7 +1320,7 @@ export default class ServiceHdlrImpl {
         }
     };
 
-    GetExternalVehicleInfoLogic = async (accountId, userId, vinno, cookie) => {
+    GetExternalVehicleInfoLogic = async (accountId, userId, vinno, cookie, xplatform) => {
         try {
             const userFleets = await this.serviceModSvcI.GetUserFleets(accountId, userId);
             if (!userFleets || userFleets.length === 0) {
@@ -1378,8 +1342,8 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie);
-            if (!getMyServicePerms.isAdmin) {
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+                const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.view', 'service.booking.admin']);
                 if (!hasPerm) {
@@ -1559,7 +1523,7 @@ export default class ServiceHdlrImpl {
         }
     };
 
-    GetSoSDetailsLogic = async (accountId, userId, vinno, cookie) => {
+    GetSoSDetailsLogic = async (accountId, userId, vinno, cookie, xplatform) => {
         try {
             const userFleets = await this.serviceModSvcI.GetUserFleets(accountId, userId);
             if (!userFleets || userFleets.length === 0) {
@@ -1580,8 +1544,8 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie);
-            if (!getMyServicePerms.isAdmin) {
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+                const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.sos.admin'], 'all');
                 if (!hasPerm) {
@@ -1667,7 +1631,7 @@ export default class ServiceHdlrImpl {
         }
     };
 
-    RaiseSOSLogic = async (accountId, userId, sosinfo, cookie) => {
+    RaiseSOSLogic = async (accountId, userId, sosinfo, cookie, xplatform) => {
         try {
             const { vinno, latitude, longitude, issue } = sosinfo;
             const userFleets = await this.serviceModSvcI.GetUserFleets(accountId, userId);
@@ -1690,8 +1654,8 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie);
-            if (!getMyServicePerms.isAdmin) {
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+                const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.sos.admin'], 'all');
                 if (!hasPerm) {
@@ -2198,8 +2162,27 @@ export default class ServiceHdlrImpl {
     
     BATCH_SIZE = 100;
 
-    GetMyServicePermsLogic = async (fleetid, moduleId, cookie) => {
+    GetMyServicePermsLogic = async (fleetid, moduleId, cookie, xplatform) => {
         try {
+            const subscriptioncheckpath = `/subscription/details`;
+            const subscriptioncheckmethod = 'GET';
+            const subscriptioncheckresponse = await this.wrapperI.connectToFMSApi(subscriptioncheckpath, {}, subscriptioncheckmethod, cookie);
+            const subscriptiondata = subscriptioncheckresponse.data;
+            if(!subscriptiondata.ismobilefree){
+                if ( !subscriptiondata.issubscribed || !subscriptiondata.modulecodes.includes('service')) {
+                    throw {
+                    errcode: "ACCOUNT_NOT_SUBSCRIBED",
+                    errmsg: "Account is not subcribed for this Feature"
+                    }
+                }
+            } else if( (xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS') && subscriptiondata.ismobilefree){
+                if ( !subscriptiondata.issubscribed || !subscriptiondata.modulecodes.includes('service')) {
+                    throw {
+                    errcode: "ACCOUNT_NOT_SUBSCRIBED",
+                    errmsg: "Account is not subcribed for this Feature"
+                    }
+                }
+            }
             const path = `/account/fleet/${fleetid}/getmyperms`;
             const METHOD = 'GET';
             const myServicePerms = await this.wrapperI.connectToFMSApi(path, {}, METHOD, cookie);
@@ -2212,16 +2195,17 @@ export default class ServiceHdlrImpl {
             if (!permissionByModule) {
                 throw new Error("No permissions found");
             }
-            let isAdmin = false;
-            if (permList.includes('all.all.all')) {
-                isAdmin = true;
-            }
             return {
-                isAdmin,
                 ...permissionByModule
             }
         } catch (error) {
             this.logger.error("Error in GetMyServicePermsLogic: ", error.toString());
+            if (error.errcode === "ACCOUNT_NOT_SUBSCRIBED") {
+                throw {
+                    errcode: "ACCOUNT_NOT_SUBSCRIBED",
+                    errmsg: "Account is not subcribed for this Feature"
+                }
+            }
             throw {
                 errcode: "PERMISSION_DENIED",
                 errmsg: error?.errmsg || null

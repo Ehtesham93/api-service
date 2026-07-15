@@ -11,13 +11,6 @@ export default {
         port: 10004,
     },
     logToConsole: false,
-    emailsvc: {
-        url: "https://email-service.intellicar.in",
-        sendEmailPath: "/api/v1/email/send",
-        accountid:
-            "EA_F927E60B708F20D0F35AD667D34B3F3A8B28AB332A9F3FB384E631968867A48E",
-        apikey: "EB_25F98EB56D926AFDEE768417F1A1CD712B40E632FCD9B91501BBD5C3571D66B4",
-    },
     mahindrasvc: {
         baseurl: "https://api-mahindraforyou.mahindra.com/lmm",
         Accept: "application/json",
@@ -38,7 +31,7 @@ export default {
         service: "servicesch"
     },
     externalapi: {
-        baseurl: "http://stg-nemo3-api-fms-svc.intellicar-frontend1:10004/api/v1/fms",
+        baseurl: "http://stg-nemo3-api-fms-internal-svc.intellicar-frontend1:10004/api/v1/fms",
         referer: "https://stg-nemo.mahindralastmilemobility.com:8443"
     },
     csrf: {
@@ -56,5 +49,9 @@ export default {
         axiostimeout: 60000,
         requesttimeout: 90000
     },
-    enableServiceOnboarding: false
+    enableServiceOnboarding: false,
+    impersonationlog: {
+        baseurl: "http://stg-nemo3-api-fms-internal-svc.intellicar-frontend1:10004",
+        path: "/api/v1/platform/impersonation/insertlogs"
+    },
 };

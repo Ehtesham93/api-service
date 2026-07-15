@@ -27,7 +27,7 @@ export default {
         service: "servicesch",
     },
     externalapi: {
-        baseurl: "http://dev-nemo3-api-fms-svc.intellicar-frontend1:10004/api/v1/fms",
+        baseurl: "http://dev-nemo3-api-fms-internal-svc.intellicar-frontend1:10004/api/v1/fms",
         referer: "https://stg-nemo.mahindralastmilemobility.com:2083"
     },
     csrf: {
@@ -45,5 +45,9 @@ export default {
         axiostimeout: 60000,
         requesttimeout: 90000
     },
-    enableServiceOnboarding: false
+    enableServiceOnboarding: false,
+    impersonationlog: {
+        baseurl: "http://dev-nemo3-api-fms-internal-svc.intellicar-frontend1:10004",
+        path: "/api/v1/platform/impersonation/insertlogs"
+    },
 };

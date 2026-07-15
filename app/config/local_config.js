@@ -45,5 +45,9 @@ export default {
         axiostimeout: 60000,
         requesttimeout: 90000
     },
-    enableServiceOnboarding: false
+    enableServiceOnboarding: false,
+    impersonationlog: {
+        baseurl: "http://dev-nemo3-api-fms-internal-svc.intellicar-frontend1:10004",
+        path: "/api/v1/platform/impersonation/insertlogs"
+    },
 };

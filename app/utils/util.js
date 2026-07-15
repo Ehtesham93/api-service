@@ -405,10 +405,6 @@ export function checkUserPerms(userPermissions, requiredPermissions, mode = "any
       return false;
     }
   
-    if (userPermissions.includes("all.all.all")) {
-      return true;
-    }
-  
     if (!requiredPermissions || !Array.isArray(requiredPermissions) || requiredPermissions.length === 0) {
       return false;
     }
