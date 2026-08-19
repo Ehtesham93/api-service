@@ -14,6 +14,7 @@ mm_aws_build_nemo3
     SERVER_FLAG             = "false"
     INSTALL_UNSAFE_PERMISSION="false"
     FORCE_INSTALL           = "false"
+    APP_ENV = 'STAGING'
 }
  
 mm_ecs_aws_nemo3
