@@ -10,11 +10,10 @@ mm_aws_build_nemo3
     CREDENTIALNAME          = "MEML-jenkins-user"
     REGION                  = "ap-south-1"
     NODE_VERSION            = "24.15.0"
-    ENV                     = ""
     SERVER_FLAG             = "false"
     INSTALL_UNSAFE_PERMISSION="false"
     FORCE_INSTALL           = "false"
-    APP_ENV = 'STAGING'
+    APP_ENV                 = 'STAGING'
 }
  
 mm_ecs_aws_nemo3
