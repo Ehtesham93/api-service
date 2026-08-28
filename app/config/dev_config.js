@@ -4,8 +4,8 @@ export default {
         port: 5432,
         database: "lmmintellicar",
         schema: "devfmscoresch",
-        user: "lmmintellicar_admin",
-        password: "Z52DWfsAZIBtnOK",
+        user: "",
+        password: "",
     },
     apiserver: {
         port: 10004,
@@ -20,7 +20,7 @@ export default {
         Platform: "ANDROID",
         SdkVersion: 1,
         AppVersion: 1,
-        xapikey: "UmmC8ImZwM3n1B2CeC0lo7LMvNwRFh5i2tVWavSN",
+        xapikey: "",
     },
     schemas: {
         fmscoresch: "devfmscoresch",

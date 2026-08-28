@@ -4,8 +4,8 @@ export default {
         port: 5432,
         database: "lmm_intellicar_nemo3",
         schema: "prodfmscoresch",
-        user: "lmmintellicar_admin",
-        password: "wCUxbhkhYQt70RJ9",
+        user: "",
+        password: "",
       },
     apiserver: {
         port: 10004,
@@ -20,7 +20,7 @@ export default {
         Platform: "ANDROID",
         SdkVersion: 1,
         AppVersion: 1,
-        xapikey: "UmmC8ImZwM3n1B2CeC0lo7LMvNwRFh5i2tVWavSN",
+        xapikey: "",
     },
     redis: {
         host: "lmm-intellicar-nemo3.lxuktw.clustercfg.aps1.cache.amazonaws.com",

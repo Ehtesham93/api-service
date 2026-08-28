@@ -110,7 +110,6 @@ export default class ServiceHdlrImpl {
                 },
             ];
         } catch (error) {
-            error instanceof Error && this.logger.error('Error in GetServiceOverviewLogic: ', error.toString());
             throw error;
         }
     };
@@ -170,7 +169,6 @@ export default class ServiceHdlrImpl {
             }
             return response;
         } catch (error) {
-            error instanceof Error && this.logger.error('Error in GetVehiclesInServiceLogic: ', error.toString());
             throw error;
         }
     };
@@ -259,7 +257,6 @@ export default class ServiceHdlrImpl {
             });
             return dealers;
         } catch (error) {
-            this.logger.error('Error in ListDealers', error.toString());
             throw error;
         }
     };
@@ -315,7 +312,6 @@ export default class ServiceHdlrImpl {
                 timeslots,
             };
         } catch (error) {
-            error instanceof Error && this.logger.error('Error in GetDealerSlots: ', error.toString());
             throw error;
         }
     };
@@ -328,7 +324,6 @@ export default class ServiceHdlrImpl {
             if (txclient !== null) {
                 await this.serviceModSvcI.RollbackTransaction(txclient);
             }
-            this.logger.error('Error in CreateVehicleServiceBookingLogic: ', error.toString());
             throw {
                 errcode: 'INTERNAL_SERVER_ERROR',
             };
@@ -471,7 +466,6 @@ export default class ServiceHdlrImpl {
             if (txclient !== null) {
                 await this.serviceModSvcI.RollbackTransaction(txclient);
             }
-            error instanceof Error && this.logger.error('Error in CreateVehicleServiceBooking: ', error.toString());
             throw error;
         }
     };
@@ -484,7 +478,6 @@ export default class ServiceHdlrImpl {
             if (txclient !== null) {
                 await this.serviceModSvcI.RollbackTransaction(txclient);
             }
-            this.logger.error('Error in GetVehicleServiceStatusLogic: ', error.toString());
             throw {
                 errcode: 'INTERNAL_SERVER_ERROR',
             };
@@ -726,7 +719,6 @@ export default class ServiceHdlrImpl {
             if (txclient !== null) {
                 await this.serviceModSvcI.RollbackTransaction(txclient);
             }
-            this.logger.error('Error in ReschVehicleServiceBookingLogic: ', error.toString());
             throw {
                 errcode: 'INTERNAL_SERVER_ERROR',
             };
@@ -889,7 +881,6 @@ export default class ServiceHdlrImpl {
             if (txclient !== null) {
                 await this.serviceModSvcI.RollbackTransaction(txclient);
             }
-            error instanceof Error && this.logger.error('Error in ReschVehicleServiceBooking: ', error.toString());
             throw error;
         }
     };
@@ -916,7 +907,6 @@ export default class ServiceHdlrImpl {
             if (txclient !== null) {
                 await this.serviceModSvcI.RollbackTransaction(txclient);
             }
-            this.logger.error('Error in CancelVehicleServiceBookingLogic: ', error.toString());
             throw {
                 errcode: 'INTERNAL_SERVER_ERROR',
             };
@@ -1046,7 +1036,6 @@ export default class ServiceHdlrImpl {
             if (txclient !== null) {
                 await this.serviceModSvcI.RollbackTransaction(txclient);
             }
-            error instanceof Error && this.logger.error('Error in CancelVehicleServiceBooking: ', error.toString());
             throw error;
         }
     };
@@ -1096,7 +1085,6 @@ export default class ServiceHdlrImpl {
             });
             return serviceHistory;
         } catch (error) {
-            error instanceof Error && this.logger.error('Error in GetVehicleServiceHistoryLogic: ', error.toString());
             throw error;
         }
     };
@@ -1518,7 +1506,6 @@ export default class ServiceHdlrImpl {
             });
             return dealers;
         } catch (error) {
-            this.logger.error('Error in ListNearestDealersSearch: ', error.toString());
             throw error;
         }
     };
@@ -1799,7 +1786,6 @@ export default class ServiceHdlrImpl {
             kiloMap.set(nextServiceKm, true);
             return Object.fromEntries(kiloMap);
         } catch (error) {
-            error instanceof Error && this.logger.error('Error in GetKilometersLogic: ', error.toString());
             throw error;
         }
     };
@@ -1868,7 +1854,6 @@ export default class ServiceHdlrImpl {
             const filteredVehicles = servicemodhdlrutil.filterVehicleServiceDetails(vehiclesData, serviceKilometersList, startDate);
             return filteredVehicles;
         } catch (error) {
-            error instanceof Error && this.logger.error('Error in GetFiltVechInService: ', error.toString());
             throw error;
         }
     };
@@ -1928,7 +1913,6 @@ export default class ServiceHdlrImpl {
             this.logger.info(`Batch processing completed: ${batchResults.length - failedBatches} successful, ${failedBatches} failed`);
             return aggregatedData;
         } catch (error) {
-            this.logger.error('Error in getVehicleRecentData', error.toString());
             throw {
                 errcode: 'INTERNAL_SERVER_ERROR',
             };
@@ -2199,7 +2183,6 @@ export default class ServiceHdlrImpl {
                 ...permissionByModule
             }
         } catch (error) {
-            this.logger.error("Error in GetMyServicePermsLogic: ", error.toString());
             if (error.errcode === "ACCOUNT_NOT_SUBSCRIBED") {
                 throw {
                     errcode: "ACCOUNT_NOT_SUBSCRIBED",
@@ -2221,7 +2204,6 @@ export default class ServiceHdlrImpl {
             const vinnoList = response.data.map((vehicle) => vehicle.vinno);
             return vinnoList;
         } catch (error) {
-            this.logger.error("Error in GetVehiclesListLogic: ", error.toString());
             throw error;
         }
     }
@@ -2231,7 +2213,6 @@ export default class ServiceHdlrImpl {
             const result = await this.serviceModSvcI.GetVehicleOnboardingStatus(vinno);
             return result;
         } catch (error) {
-            error instanceof Error && this.logger.error('Error in GetVehicleOnboardingStatus: ', error.toString());
             throw error;
         }
     };
@@ -2241,7 +2222,6 @@ export default class ServiceHdlrImpl {
             const result = await this.serviceModSvcI.GetVehicleOnboardingHistory(vinno);
             return result;
         } catch (error) {
-            error instanceof Error && this.logger.error('Error in GetVehicleOnboardingHistory: ', error.toString());
             throw error;
         }
     };

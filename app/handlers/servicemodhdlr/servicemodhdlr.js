@@ -119,7 +119,7 @@ export default class ServiceModHdlr {
             const result = await this.serviceModHdlrI.VehicleOnboardingLogic(vinno, mobileno);
             APIResponseOK(req, res, "vehicle onboarding request submitted successfully", result);
         } catch (error) {
-            this.logger.error("VehicleOnboarding error: ", error);
+            this.logger.error("VehicleOnboarding error", error);
             if (error.errcode === "INPUT_ERROR") {
                 APIResponseBadRequest(
                 req,
@@ -736,6 +736,7 @@ export default class ServiceModHdlr {
 
     // Utility method to handle errors and send appropriate responses
     handleError = (req, res, error) => {
+        this.logger.error("handler error", error);
         // Handle input validation errors with bad request response
         if (error.errcode === 'INPUT_ERROR' || error.errcode === 'ZOD_UTILIZATION_ERROR' || error.errcode === 'ACCOUNT_NOT_SUBSCRIBED') {
             return APIResponseBadRequest(req, res, error.errcode, null, error.errmsg);
@@ -773,7 +774,7 @@ export default class ServiceModHdlr {
             const result = await this.serviceModHdlrI.VehicleOnboardingStatusLogic(vinno);
             APIResponseOK(req, res, result,"vehicle onboarding status fetched successfully");
         } catch (error) {
-            this.logger.error("GetVehicleOnboardingStatus error: ", error);
+            this.logger.error("GetVehicleOnboardingStatus error", error);
             if (error.errcode === "INPUT_ERROR") {
                 APIResponseBadRequest(
                 req,
@@ -817,7 +818,7 @@ export default class ServiceModHdlr {
             const result = await this.serviceModHdlrI.VehicleOnboardingHistoryLogic(vinno);
             APIResponseOK(req, res, result,"vehicle onboarding history fetched successfully");
         } catch (error) {
-            this.logger.error("GetVehicleOnboardingHistory error: ", error);
+            this.logger.error("GetVehicleOnboardingHistory error", error);
             if (error.errcode === "INPUT_ERROR") {
                 APIResponseBadRequest(
                 req,
