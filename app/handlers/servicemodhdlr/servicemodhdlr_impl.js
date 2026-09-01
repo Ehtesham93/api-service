@@ -51,7 +51,7 @@ export default class ServiceHdlrImpl {
             }
 
             const moduleId = moduleDetails[0].moduleid;
-            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS' && xplatform !=='iOS'){
                 const getMyServicePerms = await this.GetMyServicePermsLogic(fleetid, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.view', 'service.booking.admin']);
@@ -131,7 +131,7 @@ export default class ServiceHdlrImpl {
             }
 
             const moduleId = moduleDetails[0].moduleid;
-            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS' && xplatform !=='iOS'){
                 const getMyServicePerms = await this.GetMyServicePermsLogic(fleetId, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.view', 'service.booking.admin']);
@@ -349,7 +349,7 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS' && xplatform !=='iOS'){
                 const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.admin'], 'all');
@@ -503,7 +503,7 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS' && xplatform !=='iOS'){
                 const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.view', 'service.booking.admin']);
@@ -743,7 +743,7 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS' && xplatform !=='iOS'){
                 const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.admin'], 'all');
@@ -932,7 +932,7 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS' && xplatform !=='iOS'){
                 const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.admin'], 'all');
@@ -1062,7 +1062,7 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS' && xplatform !=='iOS'){
                 const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.view', 'service.booking.admin']);
@@ -1111,7 +1111,7 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS' && xplatform !=='iOS'){
                 const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.view', 'service.booking.admin']);
@@ -1246,7 +1246,7 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS' && xplatform !=='iOS'){
                 const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.view', 'service.booking.admin']);
@@ -1330,7 +1330,7 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS' && xplatform !=='iOS'){
                 const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.view', 'service.booking.admin']);
@@ -1531,7 +1531,7 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS' && xplatform !=='iOS'){
                 const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.sos.admin'], 'all');
@@ -1641,7 +1641,7 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS' && xplatform !=='iOS'){
                 const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.sos.admin'], 'all');
@@ -2159,7 +2159,7 @@ export default class ServiceHdlrImpl {
                     errmsg: "Account is not subcribed for this Feature"
                     }
                 }
-            } else if( (xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS') && subscriptiondata.ismobilefree){
+            } else if( (xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS' && xplatform !=='iOS') && subscriptiondata.ismobilefree){
                 if ( !subscriptiondata.issubscribed || !subscriptiondata.modulecodes.includes('service')) {
                     throw {
                     errcode: "ACCOUNT_NOT_SUBSCRIBED",
