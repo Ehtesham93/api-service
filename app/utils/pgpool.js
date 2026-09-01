@@ -13,8 +13,6 @@ export const ErrTXNExec = new FabErr("ERR_TXN_EXEC", null, "txn exec error");
 export default class PgPool {
   constructor(pgcfg, logger) {
     this.logger = logger;
-    this.activeConnections = 0;
-    this.maxConnections = 5;
     this.Pool = new pg.Pool({
       user: pgcfg.user,
       host: pgcfg.host,
@@ -26,18 +24,18 @@ export default class PgPool {
       statement_timeout: 30 * 1000,
       ssl: {
         rejectUnauthorized: false,
-      }
+      },
     });
+    this.activeQueries = 0;
     this.Pool.on("connect", (client) => {
       client.query("SET search_path TO " + pgcfg.schema + ",public");
     });
-    
-    this.Pool.on("acquire", (client) => {});
-    this.Pool.on("release", (client) => {});
 
-    this.Pool.on("error", (_) => {
-      this.logger.error("Client connection unexpectedly closed..");
-      this.logger.error("Please try again...");
+    this.Pool.on("acquire", () => {
+      this.activeQueries++;
+    });
+    this.Pool.on("release", () => {
+      this.activeQueries--;
     });
   }
 
@@ -50,19 +48,23 @@ export default class PgPool {
     try {
       client = await this.Pool.connect();
     } catch (error) {
-      this.logger.error(error);
       const errorresp = error;
-      if (error.hasOwnProperty("message")) {errorresp.msg = error.message;}
+      if (error.hasOwnProperty("message")) {
+        errorresp.msg = error.message;
+      }
       return [null, ErrConnect.NewWData(error)];
     }
     try {
       await client.query("BEGIN");
       return [client, null];
     } catch (error) {
-      this.logger.error(error);
+      if (client) {
+        client.release();
+      }
       const errorresp = error;
-      if (error.hasOwnProperty("message")) {errorresp.msg = error.message;}
-      client.release();
+      if (error.hasOwnProperty("message")) {
+        errorresp.msg = error.message;
+      }
       return [null, ErrTXNStart.NewWData(error)];
     }
   }
@@ -72,9 +74,10 @@ export default class PgPool {
     try {
       client = await this.Pool.connect();
     } catch (error) {
-      this.logger.error(error);
       const errorresp = error;
-      if (error.hasOwnProperty("message")) {errorresp.msg = error.message;}
+      if (error.hasOwnProperty("message")) {
+        errorresp.msg = error.message;
+      }
       return [null, ErrConnect.NewWData(error)];
     }
     try {
@@ -85,15 +88,19 @@ export default class PgPool {
     } catch (error) {
       const rollbackerr = await this.TxRollback(client);
       if (rollbackerr != null) {
-        this.logger.error(rollbackerr);
+        if (error && typeof error === "object") {
+          error.rollbackError = rollbackerr;
+        }
         const errorresp = rollbackerr;
-        if (error.hasOwnProperty("message"))
-          {errorresp.msg = rollbackerr.message;}
+        if (error.hasOwnProperty("message")) {
+          errorresp.msg = rollbackerr.message;
+        }
         return [null, ErrTXNRollback.NewWData(rollbackerr)];
       }
-      this.logger.error(error);
       const errorresp = error;
-      if (error.hasOwnProperty("message")) {errorresp.msg = error.message;}
+      if (error.hasOwnProperty("message")) {
+        errorresp.msg = error.message;
+      }
       return [null, ErrTXNExec.NewWData(errorresp)];
     } finally {
       if (client) {
@@ -110,7 +117,14 @@ export default class PgPool {
       return error;
     } finally {
       if (client) {
-        client.release();
+        try {
+          client.release();
+        } catch (releaseError) {
+          this.logger.warn(
+            "Client release error during commit:",
+            releaseError.message
+          );
+        }
       }
     }
   }
@@ -123,7 +137,14 @@ export default class PgPool {
       return error;
     } finally {
       if (client) {
-        client.release();
+        try {
+          client.release();
+        } catch (releaseError) {
+          this.logger.warn(
+            "Client release error during rollback:",
+            releaseError.message
+          );
+        }
       }
     }
   }

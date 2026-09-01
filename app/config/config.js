@@ -19,6 +19,19 @@ if (process.env.APP_ENV === "PRODUCTION") {
     config = localConfig;
 }
 
+const SECRET_OVERRIDES = [
+  ["PGDB_USR", "pgdb", "user"],
+  ["PGDB_PSW", "pgdb", "password"],
+  ["MAHINDRA_XAPIKEY", "mahindrasvc", "xapikey"],
+];
+
+for (const [envName, section, field] of SECRET_OVERRIDES) {
+  const value = process.env[envName];
+  if (value && value.trim() && config[section]) {
+    config[section][field] = value.trim();
+  }
+}
+
 const ALLOWED_SCHEMAS = ['devfmscoresch', 'stgcoreschema', 'servicesch', 'prodfmscoresch'];
 
 function validateSchema(schemaName) {

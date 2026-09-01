@@ -34,7 +34,7 @@ export default class ServiceHdlrImpl {
         }
     };
 
-    GetServiceOverviewLogic = async (accountid, fleetid, userid, isRecursive, cookie, startDate) => {
+    GetServiceOverviewLogic = async (accountid, fleetid, userid, isRecursive, cookie, startDate, xplatform) => {
         try {
             // const isvalid = await this.UserFleetValidationLogic(accountid, userid, fleetid);
             // if (!isvalid) {
@@ -51,8 +51,8 @@ export default class ServiceHdlrImpl {
             }
 
             const moduleId = moduleDetails[0].moduleid;
-            const getMyServicePerms = await this.GetMyServicePermsLogic(fleetid, moduleId, cookie);
-            if (!getMyServicePerms.isAdmin) {
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+                const getMyServicePerms = await this.GetMyServicePermsLogic(fleetid, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.view', 'service.booking.admin']);
                 if (!hasPerm) {
@@ -110,12 +110,11 @@ export default class ServiceHdlrImpl {
                 },
             ];
         } catch (error) {
-            error instanceof Error && this.logger.error('Error in GetServiceOverviewLogic: ', error.toString());
             throw error;
         }
     };
 
-    GetVehiclesInServiceLogic = async (accountId, fleetId, userId, recursive, tabId = 'all', cookie, startDate) => {
+    GetVehiclesInServiceLogic = async (accountId, fleetId, userId, recursive, tabId = 'all', cookie, startDate, xplatform) => {
         try {
             // const isvalid = await this.UserFleetValidationLogic(accountId, userId, fleetId);
             // if (!isvalid) {
@@ -132,8 +131,8 @@ export default class ServiceHdlrImpl {
             }
 
             const moduleId = moduleDetails[0].moduleid;
-            const getMyServicePerms = await this.GetMyServicePermsLogic(fleetId, moduleId, cookie);
-            if (!getMyServicePerms.isAdmin) {
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+                const getMyServicePerms = await this.GetMyServicePermsLogic(fleetId, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.view', 'service.booking.admin']);
                 if (!hasPerm) {
@@ -170,7 +169,6 @@ export default class ServiceHdlrImpl {
             }
             return response;
         } catch (error) {
-            error instanceof Error && this.logger.error('Error in GetVehiclesInServiceLogic: ', error.toString());
             throw error;
         }
     };
@@ -206,7 +204,7 @@ export default class ServiceHdlrImpl {
         }
     };
 
-    ListDealersLogic = async (accountId, userId, vinno, latitude, longitude, modelDesc, cookie) => {
+    ListDealersLogic = async (accountId, userId, vinno, latitude, longitude, modelDesc, cookie, xplatform) => {
         try {
             const userFleets = await this.serviceModSvcI.GetUserFleets(accountId, userId);
             if (!userFleets || userFleets.length === 0) {
@@ -220,25 +218,6 @@ export default class ServiceHdlrImpl {
                     errcode: 'VEHICLE_FLEET_NOT_FOUND',
                 };
             }
-
-            // const moduleDetails = await this.serviceModSvcI.GetServiceModuleDetails();
-            // if (moduleDetails.length === 0) {
-            //     throw {
-            //         errcode: 'MODULE_NOT_FOUND'
-            //     };
-            // }
-
-            // const moduleId = moduleDetails[0].moduleid;
-            // const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie);
-            // if (!getMyServicePerms.isAdmin) {
-            //     const permList = getMyServicePerms.perms.map((perm) => perm.permid);
-            //     const hasPerm = utils.checkUserPerms(permList, ['service.booking.admin']);
-            //     if (!hasPerm) {
-            //         throw {
-            //             errcode: 'USER_DEALER_ACCESS_DENIED'
-            //         }
-            //     }
-            // }
 
             const mobileNumber = await this.GetMobileNumberLogic(vinno);
             if (!mobileNumber) {
@@ -278,12 +257,11 @@ export default class ServiceHdlrImpl {
             });
             return dealers;
         } catch (error) {
-            this.logger.error('Error in ListDealers', error.toString());
             throw error;
         }
     };
 
-    GetDealerSlotsLogic = async (accountId, userId, vinno, epoch, cookie) => {
+    GetDealerSlotsLogic = async (accountId, userId, vinno, epoch, cookie, xplatform) => {
         try {
             const userFleets = await this.serviceModSvcI.GetUserFleets(accountId, userId);
             if (!userFleets || userFleets.length === 0) {
@@ -297,24 +275,6 @@ export default class ServiceHdlrImpl {
                     errcode: 'VEHICLE_FLEET_NOT_FOUND',
                 };
             }
-
-            // const moduleDetails = await this.serviceModSvcI.GetServiceModuleDetails();
-            // if (moduleDetails.length === 0) {
-            //     throw {
-            //         errcode: 'MODULE_NOT_FOUND'
-            //     };
-            // }
-            // const moduleId = moduleDetails[0].moduleid;
-            // const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie);
-            // if (!getMyServicePerms.isAdmin) {
-            //     const permList = getMyServicePerms.perms.map((perm) => perm.permid);
-            //     const hasPerm = utils.checkUserPerms(permList, ['service.booking.admin'], 'all');
-            //     if (!hasPerm) {
-            //         throw {
-            //             errcode: 'USER_DEALER_ACCESS_DENIED'
-            //         }
-            //     }
-            // }
 
             const mobileDetails = await this.serviceModSvcI.GetMobileNumber(vinno);
             const mobileNumber = mobileDetails[0].mobile;
@@ -352,12 +312,11 @@ export default class ServiceHdlrImpl {
                 timeslots,
             };
         } catch (error) {
-            error instanceof Error && this.logger.error('Error in GetDealerSlots: ', error.toString());
             throw error;
         }
     };
 
-    CreateVehicleServiceBookingLogic = async (accountId, userId, vinno, serviceType, kilometer, parentGroup, locationCode, dealerName, dealerAddress, bookingTime, cookie) => {
+    CreateVehicleServiceBookingLogic = async (accountId, userId, vinno, serviceType, kilometer, parentGroup, locationCode, dealerName, dealerAddress, bookingTime, cookie, xplatform) => {
         let txclient = null;
         try {
             txclient = await this.serviceModSvcI.StartTransaction();
@@ -365,7 +324,6 @@ export default class ServiceHdlrImpl {
             if (txclient !== null) {
                 await this.serviceModSvcI.RollbackTransaction(txclient);
             }
-            this.logger.error('Error in CreateVehicleServiceBookingLogic: ', error.toString());
             throw {
                 errcode: 'INTERNAL_SERVER_ERROR',
             };
@@ -391,8 +349,8 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie);
-            if (!getMyServicePerms.isAdmin) {
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+                const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.admin'], 'all');
                 if (!hasPerm) {
@@ -508,12 +466,11 @@ export default class ServiceHdlrImpl {
             if (txclient !== null) {
                 await this.serviceModSvcI.RollbackTransaction(txclient);
             }
-            error instanceof Error && this.logger.error('Error in CreateVehicleServiceBooking: ', error.toString());
             throw error;
         }
     };
 
-    GetVehicleServiceStatusLogic = async (accountId, userId, vinno, bookingId, cookie) => {
+    GetVehicleServiceStatusLogic = async (accountId, userId, vinno, bookingId, cookie, xplatform) => {
         let txclient = null;
         try {
             txclient = await this.serviceModSvcI.StartTransaction();
@@ -521,7 +478,6 @@ export default class ServiceHdlrImpl {
             if (txclient !== null) {
                 await this.serviceModSvcI.RollbackTransaction(txclient);
             }
-            this.logger.error('Error in GetVehicleServiceStatusLogic: ', error.toString());
             throw {
                 errcode: 'INTERNAL_SERVER_ERROR',
             };
@@ -547,8 +503,8 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie);
-            if (!getMyServicePerms.isAdmin) {
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+                const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.view', 'service.booking.admin']);
                 if (!hasPerm) {
@@ -753,7 +709,8 @@ export default class ServiceHdlrImpl {
         newDealerName,
         newDealerAddress,
         newBookingTime,
-        cookie
+        cookie,
+        xplatform
     ) => {
         let txclient = null;
         try {
@@ -762,7 +719,6 @@ export default class ServiceHdlrImpl {
             if (txclient !== null) {
                 await this.serviceModSvcI.RollbackTransaction(txclient);
             }
-            this.logger.error('Error in ReschVehicleServiceBookingLogic: ', error.toString());
             throw {
                 errcode: 'INTERNAL_SERVER_ERROR',
             };
@@ -787,8 +743,8 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie);
-            if (!getMyServicePerms.isAdmin) {
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+                const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.admin'], 'all');
                 if (!hasPerm) {
@@ -925,7 +881,6 @@ export default class ServiceHdlrImpl {
             if (txclient !== null) {
                 await this.serviceModSvcI.RollbackTransaction(txclient);
             }
-            error instanceof Error && this.logger.error('Error in ReschVehicleServiceBooking: ', error.toString());
             throw error;
         }
     };
@@ -944,7 +899,7 @@ export default class ServiceHdlrImpl {
         }
     };
 
-    CancelVehicleServiceBookingLogic = async (accountId, userId, bookingId, vinno, reason, cookie) => {
+    CancelVehicleServiceBookingLogic = async (accountId, userId, bookingId, vinno, reason, cookie, xplatform) => {
         let txclient = null;
         try {
             txclient = await this.serviceModSvcI.StartTransaction();
@@ -952,7 +907,6 @@ export default class ServiceHdlrImpl {
             if (txclient !== null) {
                 await this.serviceModSvcI.RollbackTransaction(txclient);
             }
-            this.logger.error('Error in CancelVehicleServiceBookingLogic: ', error.toString());
             throw {
                 errcode: 'INTERNAL_SERVER_ERROR',
             };
@@ -978,8 +932,8 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie);
-            if (!getMyServicePerms.isAdmin) {
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+                const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.admin'], 'all');
                 if (!hasPerm) {
@@ -1082,12 +1036,11 @@ export default class ServiceHdlrImpl {
             if (txclient !== null) {
                 await this.serviceModSvcI.RollbackTransaction(txclient);
             }
-            error instanceof Error && this.logger.error('Error in CancelVehicleServiceBooking: ', error.toString());
             throw error;
         }
     };
 
-    GetVehicleServiceHistoryLogic = async (accountId, userId, vinno, cookie) => {
+    GetVehicleServiceHistoryLogic = async (accountId, userId, vinno, cookie, xplatform) => {
         try {
             const userFleets = await this.serviceModSvcI.GetUserFleets(accountId, userId);
             if (!userFleets || userFleets.length === 0) {
@@ -1109,8 +1062,8 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie);
-            if (!getMyServicePerms.isAdmin) {
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+                const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.view', 'service.booking.admin']);
                 if (!hasPerm) {
@@ -1132,12 +1085,11 @@ export default class ServiceHdlrImpl {
             });
             return serviceHistory;
         } catch (error) {
-            error instanceof Error && this.logger.error('Error in GetVehicleServiceHistoryLogic: ', error.toString());
             throw error;
         }
     };
 
-    GetVehicleInfoLogic = async (accountId, userId, vinno, cookie) => {
+    GetVehicleInfoLogic = async (accountId, userId, vinno, cookie, xplatform) => {
         try {
             const userFleets = await this.serviceModSvcI.GetUserFleets(accountId, userId);
             if (!userFleets || userFleets.length === 0) {
@@ -1159,8 +1111,8 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie);
-            if (!getMyServicePerms.isAdmin) {
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+                const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.view', 'service.booking.admin']);
                 if (!hasPerm) {
@@ -1272,7 +1224,7 @@ export default class ServiceHdlrImpl {
         }
     };
 
-    GetInvoiceLogic = async (accountId, userId, vinno, bookingid, cookie) => {
+    GetInvoiceLogic = async (accountId, userId, vinno, bookingid, cookie, xplatform) => {
         try {
             const userFleets = await this.serviceModSvcI.GetUserFleets(accountId, userId);
             if (!userFleets || userFleets.length === 0) {
@@ -1294,8 +1246,8 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie);
-            if (!getMyServicePerms.isAdmin) {
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+                const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.view', 'service.booking.admin']);
                 if (!hasPerm) {
@@ -1356,7 +1308,7 @@ export default class ServiceHdlrImpl {
         }
     };
 
-    GetExternalVehicleInfoLogic = async (accountId, userId, vinno, cookie) => {
+    GetExternalVehicleInfoLogic = async (accountId, userId, vinno, cookie, xplatform) => {
         try {
             const userFleets = await this.serviceModSvcI.GetUserFleets(accountId, userId);
             if (!userFleets || userFleets.length === 0) {
@@ -1378,8 +1330,8 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie);
-            if (!getMyServicePerms.isAdmin) {
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+                const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.booking.view', 'service.booking.admin']);
                 if (!hasPerm) {
@@ -1554,12 +1506,11 @@ export default class ServiceHdlrImpl {
             });
             return dealers;
         } catch (error) {
-            this.logger.error('Error in ListNearestDealersSearch: ', error.toString());
             throw error;
         }
     };
 
-    GetSoSDetailsLogic = async (accountId, userId, vinno, cookie) => {
+    GetSoSDetailsLogic = async (accountId, userId, vinno, cookie, xplatform) => {
         try {
             const userFleets = await this.serviceModSvcI.GetUserFleets(accountId, userId);
             if (!userFleets || userFleets.length === 0) {
@@ -1580,8 +1531,8 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie);
-            if (!getMyServicePerms.isAdmin) {
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+                const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.sos.admin'], 'all');
                 if (!hasPerm) {
@@ -1667,7 +1618,7 @@ export default class ServiceHdlrImpl {
         }
     };
 
-    RaiseSOSLogic = async (accountId, userId, sosinfo, cookie) => {
+    RaiseSOSLogic = async (accountId, userId, sosinfo, cookie, xplatform) => {
         try {
             const { vinno, latitude, longitude, issue } = sosinfo;
             const userFleets = await this.serviceModSvcI.GetUserFleets(accountId, userId);
@@ -1690,8 +1641,8 @@ export default class ServiceHdlrImpl {
                 };
             }
             const moduleId = moduleDetails[0].moduleid;
-            const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie);
-            if (!getMyServicePerms.isAdmin) {
+            if(xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS'){
+                const getMyServicePerms = await this.GetMyServicePermsLogic(vehicleFleet, moduleId, cookie, xplatform);
                 const permList = getMyServicePerms.perms.map((perm) => perm.permid);
                 const hasPerm = utils.checkUserPerms(permList, ['service.sos.admin'], 'all');
                 if (!hasPerm) {
@@ -1835,7 +1786,6 @@ export default class ServiceHdlrImpl {
             kiloMap.set(nextServiceKm, true);
             return Object.fromEntries(kiloMap);
         } catch (error) {
-            error instanceof Error && this.logger.error('Error in GetKilometersLogic: ', error.toString());
             throw error;
         }
     };
@@ -1904,7 +1854,6 @@ export default class ServiceHdlrImpl {
             const filteredVehicles = servicemodhdlrutil.filterVehicleServiceDetails(vehiclesData, serviceKilometersList, startDate);
             return filteredVehicles;
         } catch (error) {
-            error instanceof Error && this.logger.error('Error in GetFiltVechInService: ', error.toString());
             throw error;
         }
     };
@@ -1964,7 +1913,6 @@ export default class ServiceHdlrImpl {
             this.logger.info(`Batch processing completed: ${batchResults.length - failedBatches} successful, ${failedBatches} failed`);
             return aggregatedData;
         } catch (error) {
-            this.logger.error('Error in getVehicleRecentData', error.toString());
             throw {
                 errcode: 'INTERNAL_SERVER_ERROR',
             };
@@ -2198,8 +2146,27 @@ export default class ServiceHdlrImpl {
     
     BATCH_SIZE = 100;
 
-    GetMyServicePermsLogic = async (fleetid, moduleId, cookie) => {
+    GetMyServicePermsLogic = async (fleetid, moduleId, cookie, xplatform) => {
         try {
+            const subscriptioncheckpath = `/subscription/details`;
+            const subscriptioncheckmethod = 'GET';
+            const subscriptioncheckresponse = await this.wrapperI.connectToFMSApi(subscriptioncheckpath, {}, subscriptioncheckmethod, cookie);
+            const subscriptiondata = subscriptioncheckresponse.data;
+            if(!subscriptiondata.ismobilefree){
+                if ( !subscriptiondata.issubscribed || !subscriptiondata.modulecodes.includes('service')) {
+                    throw {
+                    errcode: "ACCOUNT_NOT_SUBSCRIBED",
+                    errmsg: "Account is not subcribed for this Feature"
+                    }
+                }
+            } else if( (xplatform !=='Nemo3-Android' && xplatform !=='Nemo3-iOS') && subscriptiondata.ismobilefree){
+                if ( !subscriptiondata.issubscribed || !subscriptiondata.modulecodes.includes('service')) {
+                    throw {
+                    errcode: "ACCOUNT_NOT_SUBSCRIBED",
+                    errmsg: "Account is not subcribed for this Feature"
+                    }
+                }
+            }
             const path = `/account/fleet/${fleetid}/getmyperms`;
             const METHOD = 'GET';
             const myServicePerms = await this.wrapperI.connectToFMSApi(path, {}, METHOD, cookie);
@@ -2212,16 +2179,16 @@ export default class ServiceHdlrImpl {
             if (!permissionByModule) {
                 throw new Error("No permissions found");
             }
-            let isAdmin = false;
-            if (permList.includes('all.all.all')) {
-                isAdmin = true;
-            }
             return {
-                isAdmin,
                 ...permissionByModule
             }
         } catch (error) {
-            this.logger.error("Error in GetMyServicePermsLogic: ", error.toString());
+            if (error.errcode === "ACCOUNT_NOT_SUBSCRIBED") {
+                throw {
+                    errcode: "ACCOUNT_NOT_SUBSCRIBED",
+                    errmsg: "Account is not subcribed for this Feature"
+                }
+            }
             throw {
                 errcode: "PERMISSION_DENIED",
                 errmsg: error?.errmsg || null
@@ -2237,7 +2204,6 @@ export default class ServiceHdlrImpl {
             const vinnoList = response.data.map((vehicle) => vehicle.vinno);
             return vinnoList;
         } catch (error) {
-            this.logger.error("Error in GetVehiclesListLogic: ", error.toString());
             throw error;
         }
     }
@@ -2247,7 +2213,6 @@ export default class ServiceHdlrImpl {
             const result = await this.serviceModSvcI.GetVehicleOnboardingStatus(vinno);
             return result;
         } catch (error) {
-            error instanceof Error && this.logger.error('Error in GetVehicleOnboardingStatus: ', error.toString());
             throw error;
         }
     };
@@ -2257,7 +2222,6 @@ export default class ServiceHdlrImpl {
             const result = await this.serviceModSvcI.GetVehicleOnboardingHistory(vinno);
             return result;
         } catch (error) {
-            error instanceof Error && this.logger.error('Error in GetVehicleOnboardingHistory: ', error.toString());
             throw error;
         }
     };

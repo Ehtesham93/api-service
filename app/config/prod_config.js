@@ -4,20 +4,13 @@ export default {
         port: 5432,
         database: "lmm_intellicar_nemo3",
         schema: "prodfmscoresch",
-        user: "lmmintellicar_admin",
-        password: "wCUxbhkhYQt70RJ9",
+        user: "",
+        password: "",
       },
     apiserver: {
         port: 10004,
     },
     logToConsole: false,
-    emailsvc: {
-        url: "https://email-service.intellicar.in",
-        sendEmailPath: "/api/v1/email/send",
-        accountid:
-            "EA_F927E60B708F20D0F35AD667D34B3F3A8B28AB332A9F3FB384E631968867A48E",
-        apikey: "EB_25F98EB56D926AFDEE768417F1A1CD712B40E632FCD9B91501BBD5C3571D66B4",
-    },
     mahindrasvc: {
         baseurl: "https://api-mahindraforyou.mahindra.com/lmm",
         Accept: "application/json",
@@ -27,7 +20,7 @@ export default {
         Platform: "ANDROID",
         SdkVersion: 1,
         AppVersion: 1,
-        xapikey: "UmmC8ImZwM3n1B2CeC0lo7LMvNwRFh5i2tVWavSN",
+        xapikey: "",
     },
     redis: {
         host: "lmm-intellicar-nemo3.lxuktw.clustercfg.aps1.cache.amazonaws.com",
@@ -38,7 +31,7 @@ export default {
         service: "servicesch"
     },
     externalapi: {
-        baseurl: "http://prod-nemo3-api-fms-svc.intellicar:10004/api/v1/fms",
+        baseurl: "http://prod-nemo3-api-fms-internal-svc.intellicar:10004/api/v1/fms",
         referer: "https://nemo.mahindralastmilemobility.com"
     },
     csrf: {
@@ -56,5 +49,9 @@ export default {
         axiostimeout: 60000,
         requesttimeout: 90000
     },
-    enableServiceOnboarding: true
+    enableServiceOnboarding: true,
+    impersonationlog: {
+        baseurl: "http://prod-nemo3-api-fms-internal-svc.intellicar:10004",
+        path: "/api/v1/platform/impersonation/insertlogs"
+    },
 };

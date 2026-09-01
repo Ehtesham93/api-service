@@ -283,7 +283,7 @@ export default class ServiceModSvcDB {
                             NULL as servicedate,
                             (asb.dealermeta->>'dealername') as servicecenter, 
                             (asb.dealermeta->>'dealerlocation') as servicelocation, 
-                            (asb.bookingmeta->>'odometer')::integer as serviceodo,
+                            ROUND((asb.bookingmeta->>'odometer')::numeric)::integer as serviceodo,
                             (asb.bookingmeta->>'servicetype')::text as servicetype,
                             asb.slot,
                             asb.servicestatus as bookingstatus, 

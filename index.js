@@ -11,16 +11,38 @@ import Wrapper from "./app/utils/wrappers.js";
 
 import ServiceModSvc from "./app/services/servicemodsvc/servicemodsvc.js";
 import ServiceModHdlr from "./app/handlers/servicemodhdlr/servicemodhdlr.js";
+import ImpersonationLogUtil from "./app/utils/impersonationlogutil.js";
+import {
+  initializeServiceModDB,
+  startPolling,
+  updatePendingQueue,
+  stopPolling,
+} from "./app/utils/authexternalutils.js";
+import { startDbConnectionMetrics } from "./app/utils/metricsutil.js";
 
-import { initializeServiceModDB, startPolling, updatePendingQueue } from "./app/utils/authexternalutils.js";
-
+import { randomUUID } from "crypto";
 import { Logger } from "./lib/nemo3-lib-observability/index.js";
+
+function resolveTaskId() {
+  const fromEnv = process.env.TASK_ID?.trim();
+  if (fromEnv && fromEnv !== "null" && fromEnv !== "undefined") {
+    return fromEnv;
+  }
+  const arn = process.env.TASK_ARN?.trim();
+  if (arn && arn !== "null" && arn !== "undefined") {
+    const suffix = arn.split("/").pop();
+    if (suffix) return suffix;
+  }
+  return randomUUID();
+}
+
+const taskId = resolveTaskId();
 
 const logger = new Logger({
   environment: process.env.APP_ENV || "LOCAL",
-  service: "nemo3-api-service-svc",
-  instance: process.env.INSTANCE || "localhost",
-  ip: process.env.IP || "127.0.0.1",
+  service: process.env.SERVICE_NAME || "nemo3-api-service-svc",
+  instance: taskId,
+  ip: process.env.TASK_IP || "127.0.0.1",
   loglevel: "info",
   logToConsole: config.logToConsole || false,
   maxSizeBytes: 10 * 1024 * 1024, // 10MB
@@ -29,7 +51,6 @@ const logger = new Logger({
   autoInstrument: true,
   flushInterval: 5000,
 });
-
 
 // 0. Config Related...
 const apiserverport = config.apiserver.port;
@@ -40,29 +61,40 @@ const pgPoolI = new PgPool(config.pgdb, servicelogger);
 const wrapperI = new Wrapper(pgPoolI, config, servicelogger);
 
 const serviceModSvcI = new ServiceModSvc(pgPoolI, servicelogger, config);
-const healthSvcI = new HealthSvc();
+const healthSvcI = new HealthSvc(
+  pgPoolI,
+  servicelogger,
+  config.logToConsole ? null : logger.getMetrics(),
+);
 
 // 2. Handlers...
-const handlerloggerI = console;
-const serviceModHdlrI = new ServiceModHdlr(serviceModSvcI, wrapperI, servicelogger, config);
-const healthHdlrI = new HealthHdlr(healthSvcI);
+let impersonationLogUtilI = new ImpersonationLogUtil(config, servicelogger);
+const serviceModHdlrI = new ServiceModHdlr(
+  serviceModSvcI,
+  wrapperI,
+  servicelogger,
+  config,
+  impersonationLogUtilI,
+);
+const healthHdlrI = new HealthHdlr(healthSvcI, servicelogger);
 
 const pathPrefix = config.pathPrefix;
 
 // 3. Handler Map...
-const apiRoutes = [ // TODO rename first fms to web
-  [ pathPrefix + "/api/v1/fms/service/", serviceModHdlrI],
-  [ pathPrefix + "/api/v1/fms/service/health/", healthHdlrI]
+const apiRoutes = [
+  // TODO rename first fms to web
+  [pathPrefix + "/api/v1/fms/service/", serviceModHdlrI],
+  [pathPrefix + "/api/v1/fms/service/health/", healthHdlrI],
+  ["/api/v1/health", healthHdlrI],
 ];
 
 // 4. API Server...
-const apiserverlogger = console;
+const App = new APIServer(apiRoutes, config, servicelogger);
 
-const App = new APIServer(apiRoutes, config, apiserverlogger);
-
-if(!config.logToConsole){
-  App.app.use(logger.getMetrics().middleware());
+if (!config.logToConsole) {
+  logger.getMetrics().instrumentDatabase?.(pgPoolI.Pool);
   logger.start();
+  startDbConnectionMetrics(logger, { pgPoolI });
 }
 
 // 5. Initialize Swagger documentation
@@ -80,3 +112,34 @@ if (config.enableServiceOnboarding) {
 // Start the API server on the configured port
 App.Start(apiserverport);
 
+const gracefulShutdown = async () => {
+  try {
+    stopPolling();
+    const pgErr = await pgPoolI.End();
+    if (pgErr) {
+      servicelogger.error("Database pool close error", pgErr);
+    }
+    if (!config.logToConsole) {
+      servicelogger.info("Graceful shutdown initiated...");
+      logger.stop();
+      logger.flush();
+    }
+    process.exit(0);
+  } catch (error) {
+    servicelogger.error("Error during graceful shutdown", error);
+    process.exit(1);
+  }
+};
+
+process.on("SIGINT", () => gracefulShutdown());
+process.on("SIGTERM", () => gracefulShutdown());
+process.on("uncaughtException", (error) => {
+  servicelogger.error("uncaught exception", error);
+});
+process.on("unhandledRejection", (reason) => {
+  if (reason instanceof Error) {
+    servicelogger.error("unhandled rejection", reason);
+    return;
+  }
+  servicelogger.error("unhandled rejection", { reason: String(reason) });
+});

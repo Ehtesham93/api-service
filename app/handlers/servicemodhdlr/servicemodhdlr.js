@@ -5,10 +5,11 @@ import ServiceModHdlrImpl from './servicemodhdlr_impl.js';
 import { userFriendlyError, convertEpochToIST,  getADCModel } from '../../utils/util.js';
 
 export default class ServiceModHdlr {
-    constructor(serviceModSvcI, wrapperI, logger, config) {
+    constructor(serviceModSvcI, wrapperI, logger, config, impersonationLogUtilI) {
         this.serviceModSvcI = serviceModSvcI;
         this.logger = logger;
         this.serviceModHdlrI = new ServiceModHdlrImpl(serviceModSvcI, wrapperI, logger, config);
+        this.impersonationLogUtilI = impersonationLogUtilI;
     }
 
     // TODO: add permission check for each route
@@ -23,6 +24,7 @@ export default class ServiceModHdlr {
 
         // Apply authentication middleware to all routes below this point
         router.use(AuthenticateAccountTokenFromCookie);
+        router.use(this.impersonationLogUtilI.ImpersonationLogMiddleware());
 
         //overview routes - provide service overview and vehicle listings
         router.get('/overview', this.GetServiceOverview);
@@ -117,7 +119,7 @@ export default class ServiceModHdlr {
             const result = await this.serviceModHdlrI.VehicleOnboardingLogic(vinno, mobileno);
             APIResponseOK(req, res, "vehicle onboarding request submitted successfully", result);
         } catch (error) {
-            this.logger.error("VehicleOnboarding error: ", error);
+            this.logger.error("VehicleOnboarding error", error);
             if (error.errcode === "INPUT_ERROR") {
                 APIResponseBadRequest(
                 req,
@@ -142,7 +144,15 @@ export default class ServiceModHdlr {
                 error.errdata,
                 "Vehicle already onboarded with the given mobile number"
                 );
-            }else {
+            } else if (error.errcode === "ACCOUNT_NOT_SUBSCRIBED") {
+                APIResponseBadRequest(
+                req,
+                res,
+                error.errcode,
+                error.errdata,
+                error.errmsg
+                );
+            } else {
                 APIResponseInternalErr(
                 req,
                 res,
@@ -176,8 +186,8 @@ export default class ServiceModHdlr {
             this.validateAllInputs(schema, req.query);
             const { recursive, fleetid, startdate } = req.query;
             const recursiveBool = recursive === 'true';
-
-            const result = await this.serviceModHdlrI.GetServiceOverviewLogic(accountid, fleetid, userid, recursiveBool, cookie, startdate);
+            const xplatform = req.headers["x-platform"];
+            const result = await this.serviceModHdlrI.GetServiceOverviewLogic(accountid, fleetid, userid, recursiveBool, cookie, startdate, xplatform);
             APIResponseOK(req, res, result, 'Service overview fetched successfully');
         } catch (error) {
             this.handleError(req, res, error);
@@ -218,7 +228,8 @@ export default class ServiceModHdlr {
 
             const { recursive, fleetid, tabid, startdate } = req.query;
             const recursiveBool = recursive === 'true';
-            const result = await this.serviceModHdlrI.GetVehiclesInServiceLogic(accountid, fleetid, userid, recursiveBool, tabid, cookie, startdate);
+            const xplatform = req.headers["x-platform"];
+            const result = await this.serviceModHdlrI.GetVehiclesInServiceLogic(accountid, fleetid, userid, recursiveBool, tabid, cookie, startdate, xplatform);
             APIResponseOK(req, res, result, 'Vehicles service fetched successfully');
         } catch (error) {
             this.handleError(req, res, error);
@@ -260,7 +271,8 @@ export default class ServiceModHdlr {
             //         errcode: "NO_DEALER_FOUND"
             //     }
             // }
-            const result = await this.serviceModHdlrI.ListDealersLogic(accountid, userid, vinno, latitude, longitude, modeldesc, cookie);
+            const xplatform = req.headers["x-platform"];
+            const result = await this.serviceModHdlrI.ListDealersLogic(accountid, userid, vinno, latitude, longitude, modeldesc, cookie, xplatform);
             APIResponseOK(req, res, result, 'Dealers fetched successfully');
         } catch (error) {
             this.handleError(req, res, error);
@@ -290,7 +302,8 @@ export default class ServiceModHdlr {
                     ),
             });
             this.validateAllInputs(schema, req.body);
-            const result = await this.serviceModHdlrI.GetDealerSlotsLogic(accountid, userid, vinno, date, cookie);
+            const xplatform = req.headers["x-platform"];
+            const result = await this.serviceModHdlrI.GetDealerSlotsLogic(accountid, userid, vinno, date, cookie, xplatform);
             APIResponseOK(req, res, result, 'Dealer slots fetched successfully');
         } catch (error) {
             this.handleError(req, res, error);
@@ -334,6 +347,7 @@ export default class ServiceModHdlr {
             this.validateAllInputs(schema, req.body);
 
             const { vinno, servicetype, kilometer, parentgroup, locationcode, dealername, dealeraddress, slot } = req.body;
+            const xplatform = req.headers["x-platform"];
             const result = await this.serviceModHdlrI.CreateVehicleServiceBookingLogic(
                 accountid,
                 userid,
@@ -345,7 +359,8 @@ export default class ServiceModHdlr {
                 dealername,
                 dealeraddress,
                 slot,
-                cookie
+                cookie,
+                xplatform
             );
             APIResponseOK(req, res, result, 'Vehicle service booking created successfully');
         } catch (error) {
@@ -368,7 +383,8 @@ export default class ServiceModHdlr {
                 bookingid: z.uuid({ message: 'Invalid bookingid parameter must be a valid UUID' }),
             });
             this.validateAllInputs(schema, req.body);
-            const result = await this.serviceModHdlrI.GetVehicleServiceStatusLogic(accountid, userid, vinno, bookingid, cookie);
+            const xplatform = req.headers["x-platform"];
+            const result = await this.serviceModHdlrI.GetVehicleServiceStatusLogic(accountid, userid, vinno, bookingid, cookie, xplatform);
             APIResponseOK(req, res, result.data, result.msg);
         } catch (error) {
             this.handleError(req, res, error);
@@ -411,6 +427,7 @@ export default class ServiceModHdlr {
             this.validateAllInputs(schema, req.body);
             const { vinno, oldbookingid, newservicetype, newkilometer, newparentgroup, newlocationcode, newdealername, newdealeraddress, newslot } = req.body;
             const cookie = req.cookie;
+            const xplatform = req.headers["x-platform"];
             const result = await this.serviceModHdlrI.ReschVehicleServiceBookingLogic(
                 accountid,
                 userid,
@@ -423,7 +440,8 @@ export default class ServiceModHdlr {
                 newdealername,
                 newdealeraddress,
                 newslot,
-                cookie
+                cookie,
+                xplatform
             );
             APIResponseOK(req, res, result, 'Vehicle service booking rescheduled successfully');
         } catch (error) {
@@ -455,7 +473,8 @@ export default class ServiceModHdlr {
             this.validateAllInputs(schema, req.body);
             const { bookingid, reason, vinno } = req.body;
             const cookie = req.cookie;
-            const result = await this.serviceModHdlrI.CancelVehicleServiceBookingLogic(accountid, userid, bookingid, vinno, reason, cookie);
+            const xplatform = req.headers["x-platform"];
+            const result = await this.serviceModHdlrI.CancelVehicleServiceBookingLogic(accountid, userid, bookingid, vinno, reason, cookie, xplatform);
             APIResponseOK(req, res, result, 'Vehicle service booking cancelled successfully');
         } catch (error) {
             this.handleError(req, res, error);
@@ -475,7 +494,8 @@ export default class ServiceModHdlr {
                 .regex(/^[A-Za-z0-9](?:[A-Za-z0-9 ]*[A-Za-z0-9])?$/, "VIN must contain only letters, numbers, and spaces, and must not start or end with a space"),
             });
             this.validateAllInputs(schema, req.query);
-            const result = await this.serviceModHdlrI.GetVehicleServiceHistoryLogic(accountid, userid, vinno, cookie);
+            const xplatform = req.headers["x-platform"];
+            const result = await this.serviceModHdlrI.GetVehicleServiceHistoryLogic(accountid, userid, vinno, cookie, xplatform);
             APIResponseOK(req, res, result, 'Vehicle service history fetched successfully');
         } catch (error) {
             this.handleError(req, res, error);
@@ -495,7 +515,8 @@ export default class ServiceModHdlr {
                 .regex(/^[A-Za-z0-9](?:[A-Za-z0-9 ]*[A-Za-z0-9])?$/, "VIN must contain only letters, numbers, and spaces, and must not start or end with a space"),
             });
             this.validateAllInputs(schema, req.query);
-            const result = await this.serviceModHdlrI.GetVehicleInfoLogic(accountid, userid, vinno, cookie);
+            const xplatform = req.headers["x-platform"];
+            const result = await this.serviceModHdlrI.GetVehicleInfoLogic(accountid, userid, vinno, cookie, xplatform);
             APIResponseOK(req, res, result, 'Vehicle details fetched successfully');
         } catch (error) {
             this.handleError(req, res, error);
@@ -517,7 +538,8 @@ export default class ServiceModHdlr {
                 bookingid: z.uuid({ message: 'Invalid bookingid parameter must be a valid UUID' }),
             });
             this.validateAllInputs(schema, req.body);
-            const result = await this.serviceModHdlrI.GetInvoiceLogic(accountid, userid, vinno, bookingid, cookie);
+            const xplatform = req.headers["x-platform"];
+            const result = await this.serviceModHdlrI.GetInvoiceLogic(accountid, userid, vinno, bookingid, cookie, xplatform);
             APIResponseOK(req, res, result, 'Invoice fetched successfully');
         } catch (error) {
             this.handleError(req, res, error);
@@ -537,7 +559,8 @@ export default class ServiceModHdlr {
                 .regex(/^[A-Za-z0-9](?:[A-Za-z0-9 ]*[A-Za-z0-9])?$/, "VIN must contain only letters, numbers, and spaces, and must not start or end with a space"),
             });
             this.validateAllInputs(schema, req.query);
-            const result = await this.serviceModHdlrI.GetExternalVehicleInfoLogic(accountid, userid, vinno, cookie);
+            const xplatform = req.headers["x-platform"];
+            const result = await this.serviceModHdlrI.GetExternalVehicleInfoLogic(accountid, userid, vinno, cookie, xplatform);
             APIResponseOK(req, res, result, 'External vehicle info fetched successfully');
         } catch (error) {
             this.handleError(req, res, error);
@@ -598,7 +621,8 @@ export default class ServiceModHdlr {
                 .regex(/^[A-Za-z0-9](?:[A-Za-z0-9 ]*[A-Za-z0-9])?$/, "VIN must contain only letters, numbers, and spaces, and must not start or end with a space"),
             });
             this.validateAllInputs(schema, req.body);
-            const result = await this.serviceModHdlrI.GetSoSDetailsLogic(accountid, userid, vinno, cookie);
+            const xplatform = req.headers["x-platform"];
+            const result = await this.serviceModHdlrI.GetSoSDetailsLogic(accountid, userid, vinno, cookie, xplatform);
             APIResponseOK(req, res, result, 'SOS reasons fetched successfully');
         } catch (error) {
             this.handleError(req, res, error);
@@ -628,7 +652,8 @@ export default class ServiceModHdlr {
                     .refine((lng) => lng >= -180 && lng <= 180 && lng !== 0, { message: 'Invalid longitude: must be between -180 and 180 degrees and cannot be 0' }),
             });
             this.validateAllInputs(schema, sosinfo);
-            const result = await this.serviceModHdlrI.RaiseSOSLogic(accountid, userid, sosinfo, cookie);
+            const xplatform = req.headers["x-platform"];
+            const result = await this.serviceModHdlrI.RaiseSOSLogic(accountid, userid, sosinfo, cookie, xplatform);
             APIResponseOK(req, res, result, 'SOS raised successfully');
         } catch (error) {
             this.handleError(req, res, error);
@@ -648,7 +673,8 @@ export default class ServiceModHdlr {
             });
             this.validateAllInputs(schema, req.body);
             const vinno = req.body.vinno;
-            const result = await this.serviceModHdlrI.GetKilometersLogic(accountid, userid, vinno, cookie);
+            const xplatform = req.headers["x-platform"];
+            const result = await this.serviceModHdlrI.GetKilometersLogic(accountid, userid, vinno, cookie, xplatform);
             APIResponseOK(req, res, result, 'Kilometers fetched successfully');
         } catch (error) {
             this.handleError(req, res, error);
@@ -710,8 +736,9 @@ export default class ServiceModHdlr {
 
     // Utility method to handle errors and send appropriate responses
     handleError = (req, res, error) => {
+        this.logger.error("handler error", error);
         // Handle input validation errors with bad request response
-        if (error.errcode === 'INPUT_ERROR' || error.errcode === 'ZOD_UTILIZATION_ERROR') {
+        if (error.errcode === 'INPUT_ERROR' || error.errcode === 'ZOD_UTILIZATION_ERROR' || error.errcode === 'ACCOUNT_NOT_SUBSCRIBED') {
             return APIResponseBadRequest(req, res, error.errcode, null, error.errmsg);
         }
         // Get user-friendly error response configuration
@@ -747,7 +774,7 @@ export default class ServiceModHdlr {
             const result = await this.serviceModHdlrI.VehicleOnboardingStatusLogic(vinno);
             APIResponseOK(req, res, result,"vehicle onboarding status fetched successfully");
         } catch (error) {
-            this.logger.error("GetVehicleOnboardingStatus error: ", error);
+            this.logger.error("GetVehicleOnboardingStatus error", error);
             if (error.errcode === "INPUT_ERROR") {
                 APIResponseBadRequest(
                 req,
@@ -791,7 +818,7 @@ export default class ServiceModHdlr {
             const result = await this.serviceModHdlrI.VehicleOnboardingHistoryLogic(vinno);
             APIResponseOK(req, res, result,"vehicle onboarding history fetched successfully");
         } catch (error) {
-            this.logger.error("GetVehicleOnboardingHistory error: ", error);
+            this.logger.error("GetVehicleOnboardingHistory error", error);
             if (error.errcode === "INPUT_ERROR") {
                 APIResponseBadRequest(
                 req,
