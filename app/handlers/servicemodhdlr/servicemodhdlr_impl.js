@@ -62,7 +62,7 @@ export default class ServiceHdlrImpl {
                 }
             }
 
-            const vehicles = await this.GetVehiclesListLogic(fleetid, isRecursive, cookie);
+            const vehicles = await this.GetVehiclesListLogic(fleetid, isRecursive, cookie, xplatform);
 
             let filteredVehicles = {
                 all: [],
@@ -73,7 +73,7 @@ export default class ServiceHdlrImpl {
             };
 
             if (vehicles.length !== 0) {
-                filteredVehicles = await this.GetFiltVechInServiceLogic(vehicles, cookie, startDate);
+                filteredVehicles = await this.GetFiltVechInServiceLogic(vehicles, cookie, startDate, xplatform);
             }
 
             const allVehicles = filteredVehicles.all.length;
@@ -141,7 +141,7 @@ export default class ServiceHdlrImpl {
                     }
                 }
             }
-            const vehicles = await this.GetVehiclesListLogic(fleetId, recursive, cookie);
+            const vehicles = await this.GetVehiclesListLogic(fleetId, recursive, cookie, xplatform);
 
             let filteredVehicles = {
                 all: [],
@@ -152,7 +152,7 @@ export default class ServiceHdlrImpl {
             };
 
             if (vehicles.length !== 0) {
-                filteredVehicles = await this.GetFiltVechInServiceLogic(vehicles, cookie, startDate);
+                filteredVehicles = await this.GetFiltVechInServiceLogic(vehicles, cookie, startDate, xplatform);
             }
 
             let response = [];
@@ -395,7 +395,7 @@ export default class ServiceHdlrImpl {
             const requestId = this.getRequestId();
 
             const [vehicleLatestData, vehicleDetails] = await Promise.all([
-                this.GetVechRecentDataLogic([vinno], cookie),
+                this.GetVechRecentDataLogic([vinno], cookie, xplatform),
                 this.serviceModSvcI.GetVehicleDetails([vinno])
             ]);
             const vehicleOdometer = vehicleLatestData?.data?.candata[vinno]?.odometer || null;
@@ -813,7 +813,7 @@ export default class ServiceHdlrImpl {
                 dealerlocation: newLocationCode,
             };
 
-            const [vehicleLatestData, vehicleDetails] = await Promise.all([this.GetVechRecentDataLogic([vinno], cookie), this.serviceModSvcI.GetVehicleDetails([vinno])]);
+            const [vehicleLatestData, vehicleDetails] = await Promise.all([this.GetVechRecentDataLogic([vinno], cookie, xplatform), this.serviceModSvcI.GetVehicleDetails([vinno])]);
             const vehicleOdometer = vehicleLatestData?.data?.candata[vinno]?.odometer || null;
             const vehicleModel = utils.getADCModel(vehicleDetails.get(vinno)?.modeldisplayname) || null;
             const vehicleModelCode = vehicleDetails.get(vinno)?.modelcode || null;
@@ -975,7 +975,7 @@ export default class ServiceHdlrImpl {
             const chassisNumber = utils.getChassisNumber(vinno);
             const token = await this.getMAuthToken(vinno, mobileNumber);
 
-            const [vehicleLatestData, vehicleDetails] = await Promise.all([this.GetVechRecentDataLogic([vinno], cookie), this.serviceModSvcI.GetVehicleDetails([vinno])]);
+            const [vehicleLatestData, vehicleDetails] = await Promise.all([this.GetVechRecentDataLogic([vinno], cookie, xplatform), this.serviceModSvcI.GetVehicleDetails([vinno])]);
             const vehicleOdometer = vehicleLatestData?.data?.candata[vinno]?.odometer || null;
             const vehicleModel = vehicleDetails.get(vinno)?.modeldisplayname || null;
             const vehicleModelCode = vehicleDetails.get(vinno)?.modelcode || null;
@@ -1136,7 +1136,7 @@ export default class ServiceHdlrImpl {
 
             const [vehicleDetailsResult, vehicleTelematicsResult] = await Promise.allSettled([
                 this.serviceModSvcI.GetVehicleInfo(vinno),
-                this.GetVechRecentDataLogic([vinno], cookie)
+                this.GetVechRecentDataLogic([vinno], cookie, xplatform)
             ]);
 
             // vehicle details
@@ -1565,7 +1565,7 @@ export default class ServiceHdlrImpl {
 
             const [sosDetailsResult, vehicleRecentResult] = await Promise.allSettled([
                 this.serviceModSvcI.GetSoSDetails(vinno),
-                this.GetVechRecentDataLogic([vinno], cookie)
+                this.GetVechRecentDataLogic([vinno], cookie, xplatform)
             ]);
 
             if (sosDetailsResult.status === 'rejected') {
@@ -1792,10 +1792,10 @@ export default class ServiceHdlrImpl {
 
     //support functions
     //overview api
-    GetFiltVechInServiceLogic = async (vehicles, cookie, startDate) => {
+    GetFiltVechInServiceLogic = async (vehicles, cookie, startDate, xplatform) => {
         try {
             const vehicleDetails = await this.serviceModSvcI.GetVehicleDetails(vehicles);
-            const recentData = await this.GetVechRecentDataLogic(vehicles, cookie);
+            const recentData = await this.GetVechRecentDataLogic(vehicles, cookie, xplatform);
             const vehiclesData = new Map();
             vehicles.forEach((vehicle) => {
                 vehiclesData.set(vehicle, {
@@ -1859,7 +1859,7 @@ export default class ServiceHdlrImpl {
     };
 
     //overview, booking, reschedule, cancel, vehicle info and sos api
-    GetVechRecentDataLogic = async (vinnos, cookie) => {
+    GetVechRecentDataLogic = async (vinnos, cookie, xplatform) => {
         try {
             const path = '/historydata/vehicle/latestdata';
             const METHOD = 'POST';
@@ -1876,7 +1876,7 @@ export default class ServiceHdlrImpl {
             const batchPromises = batches.map(async (batch, batchIndex) => {
                 try {
                     const body = { vinnos: batch };
-                    const vehicletelimatics = await this.wrapperI.connectToFMSApi(path, body, METHOD, cookie);
+                    const vehicletelimatics = await this.wrapperI.connectToFMSApi(path, body, METHOD, cookie, xplatform);
                     return {
                         status: 'fulfilled',
                         data: vehicletelimatics,
@@ -2117,11 +2117,11 @@ export default class ServiceHdlrImpl {
     };
 
     //overview api
-    GetRecursiveFleetsLogic = async (fleetId, cookie) => {
+    GetRecursiveFleetsLogic = async (fleetId, cookie, xplatform) => {
         try {
             const path = `/account/fleet/${fleetId}/subfleets?recursive=true`;
             const METHOD = 'GET';
-            const fleets = await this.wrapperI.connectToFMSApi(path, {}, METHOD, cookie);
+            const fleets = await this.wrapperI.connectToFMSApi(path, {}, METHOD, cookie, xplatform);
             return fleets;
         } catch (error) {
             throw error;
@@ -2150,7 +2150,7 @@ export default class ServiceHdlrImpl {
         try {
             const subscriptioncheckpath = `/subscription/details`;
             const subscriptioncheckmethod = 'GET';
-            const subscriptioncheckresponse = await this.wrapperI.connectToFMSApi(subscriptioncheckpath, {}, subscriptioncheckmethod, cookie);
+            const subscriptioncheckresponse = await this.wrapperI.connectToFMSApi(subscriptioncheckpath, {}, subscriptioncheckmethod, cookie, xplatform);
             const subscriptiondata = subscriptioncheckresponse.data;
             if(!subscriptiondata.ismobilefree){
                 if ( !subscriptiondata.issubscribed || !subscriptiondata.modulecodes.includes('service')) {
@@ -2169,7 +2169,7 @@ export default class ServiceHdlrImpl {
             }
             const path = `/account/fleet/${fleetid}/getmyperms`;
             const METHOD = 'GET';
-            const myServicePerms = await this.wrapperI.connectToFMSApi(path, {}, METHOD, cookie);
+            const myServicePerms = await this.wrapperI.connectToFMSApi(path, {}, METHOD, cookie, xplatform);
             const permissionInfo = myServicePerms.data;
             const permList = permissionInfo.permissions
             if (permList.length === 0) {
@@ -2196,11 +2196,11 @@ export default class ServiceHdlrImpl {
         }
     }
 
-    GetVehiclesListLogic = async (fleetId, isRecursive, cookie) => {
+    GetVehiclesListLogic = async (fleetId, isRecursive, cookie, xplatform) => {
         try {
             const path = `/account/fleet/${fleetId}/vehicles?recursive=${isRecursive}`
             const METHOD = 'GET';
-            const response = await this.wrapperI.connectToFMSApi(path, {}, METHOD, cookie);
+            const response = await this.wrapperI.connectToFMSApi(path, {}, METHOD, cookie, xplatform);
             const vinnoList = response.data.map((vehicle) => vehicle.vinno);
             return vinnoList;
         } catch (error) {

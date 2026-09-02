@@ -390,18 +390,22 @@ export default class Wrapper {
         await this.pgPoolI.Query(query, [vinno, new Date(), path, JSON.stringify(requestPayload), status < 300 && status >= 200 ? 1 : 0, duration, JSON.stringify(responsePayload)]);
     }
 
-    async connectToFMSApi(path, body, method = 'GET', cookie) {
+    async connectToFMSApi(path, body, method = 'GET', cookie, xplatform) {
         try {
             const url = `${this.config.externalapi.baseurl}${path}`;
+            const headers = {
+                Accept: 'application/json',
+                Referer: this.config.externalapi.referer,
+                Cookie: cookie
+            };
+            if (xplatform) {
+                headers['x-platform'] = xplatform;
+            }
             const response = await axios({
                 url: url,
                 method: method,
                 data: body,
-                headers: {
-                    Accept: 'application/json',
-                    Referer: this.config.externalapi.referer,
-                    Cookie: cookie
-                },
+                headers: headers,
             });
             return response.data;
         } catch (error) {
