@@ -1803,7 +1803,7 @@ export default class ServiceHdlrImpl {
                     regno: vehicleDetails.get(vehicle)?.regno || null,
                     modelcode: vehicleDetails.get(vehicle)?.modelcode || null,
                     modeldisplayname: vehicleDetails.get(vehicle)?.modeldisplayname || null,
-                    odometer: recentData?.data?.candata?.[vehicle]?.odometer ? Math.round(recentData?.data?.candata?.[vehicle]?.odometer) + " km" : null,
+                    odometer: `${recentData?.data?.candata?.[vehicle]?.odometer} km` || null,
                     location: {
                         lat: recentData?.data?.gpsdata?.[vehicle]?.latitude || 17.6867174,
                         lng: recentData?.data?.gpsdata?.[vehicle]?.longitude || 77.5822892,
