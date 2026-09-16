@@ -40,7 +40,7 @@ const taskId = resolveTaskId();
 
 const logger = new Logger({
   environment: process.env.APP_ENV || "LOCAL",
-  service: process.env.SERVICE_NAME || "nemo3-api-service-svc",
+  service: process.env.APP_NAME || "nemo3-api-service-svc",
   instance: taskId,
   ip: process.env.TASK_IP || "127.0.0.1",
   loglevel: "info",

@@ -9,6 +9,7 @@ pipeline {
         AWS_CREDENTIALS_ID = 'aws_credentials'
         CLUSTER_NAME = 'intellicar-frontend'
         SERVICE_NAME = 'stg-nemo3-api-service-svc'
+        APP_NAME = 'nemo3-api-service-svc'
         TASK_DEFINITION_NAME = 'stg-lmm-intellicar-nemo3-api-service-svc'
         CONTAINER_NAME = 'stg-nemo3-api-service-svc'
         APP_ENV = 'STAGING'
@@ -32,7 +33,7 @@ pipeline {
         stage('Build') {
             steps {
                 echo 'Building the application...'
-                sh 'docker build --build-arg APP_ENV=${APP_ENV} --build-arg SERVICE_NAME=${SERVICE_NAME} -t ${ECR_ENDPOINT}/${ECR_REPO}:${ECR_IMAGE_NAME}-${GIT_COMMIT} .'
+                sh 'docker build --build-arg APP_ENV=${APP_ENV} --build-arg APP_NAME=${APP_NAME} -t ${ECR_ENDPOINT}/${ECR_REPO}:${ECR_IMAGE_NAME}-${GIT_COMMIT} .'
             }
         }
 
